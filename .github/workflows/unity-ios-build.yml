@@ -4,19 +4,7 @@ on:
   workflow_call:
     inputs:
       game_name:
-        description: "Human-readable name (used in job/artifact names)"
-        required: true
-        type: string
-      app_identifier:
-        description: "iOS bundle identifier"
-        required: true
-        type: string
-      output_ipa_name:
-        description: "Filename for the output IPA"
-        required: true
-        type: string
-      team_id:
-        description: "Apple Developer Team ID"
+        description: "Human-readable name (used in job/artifact names and IPA filename)"
         required: true
         type: string
       xcode_project_dir:
@@ -78,14 +66,12 @@ jobs:
       - name: Run Fastlane
         run: bundle exec fastlane ${{ inputs.fastlane_lane }}
         env:
-          FL_APP_IDENTIFIER: ${{ inputs.app_identifier }}
+          FL_GAME_NAME: ${{ inputs.game_name }}
           FL_XCODE_PROJECT_DIR: ${{ inputs.xcode_project_dir }}
-          FL_OUTPUT_IPA_NAME: ${{ inputs.output_ipa_name }}
-          FL_TEAM_ID: ${{ inputs.team_id }}
           FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: "${{ inputs.game_name }}-iOS-Build"
-          path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.output_ipa_name }}"
+          path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.game_name }}.ipa"
