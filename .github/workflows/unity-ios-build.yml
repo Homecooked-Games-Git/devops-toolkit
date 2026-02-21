@@ -1,0 +1,91 @@
+name: Unity iOS Build & Deploy
+
+on:
+  workflow_call:
+    inputs:
+      game_name:
+        description: "Human-readable name (used in job/artifact names)"
+        required: true
+        type: string
+      app_identifier:
+        description: "iOS bundle identifier"
+        required: true
+        type: string
+      output_ipa_name:
+        description: "Filename for the output IPA"
+        required: true
+        type: string
+      team_id:
+        description: "Apple Developer Team ID"
+        required: true
+        type: string
+      xcode_project_dir:
+        required: false
+        type: string
+        default: "build/iOS/iOS"
+      fastlane_lane:
+        required: false
+        type: string
+        default: "ios beta"
+      devops_toolkit_ref:
+        description: "Git ref of devops-toolkit for import_from_git"
+        required: false
+        type: string
+        default: "v1"
+      unity_versioning:
+        required: false
+        type: string
+        default: "None"
+
+jobs:
+  build-ios:
+    name: "Build iOS - ${{ inputs.game_name }}"
+    runs-on: [self-hosted, macOS]
+
+    env:
+      PATH: /opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+      APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          clean: false
+          fetch-depth: 0
+
+      - name: Clean Workspace Artifacts
+        run: git clean -fdx --exclude=Library
+
+      - name: Build Xcode Project via GameCI
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          targetPlatform: iOS
+          skipActivation: true
+          allowDirtyBuild: true
+          versioning: ${{ inputs.unity_versioning }}
+
+      - name: Install Ruby Dependencies
+        run: bundle install
+
+      - name: Run Fastlane
+        run: bundle exec fastlane ${{ inputs.fastlane_lane }}
+        env:
+          FL_APP_IDENTIFIER: ${{ inputs.app_identifier }}
+          FL_XCODE_PROJECT_DIR: ${{ inputs.xcode_project_dir }}
+          FL_OUTPUT_IPA_NAME: ${{ inputs.output_ipa_name }}
+          FL_TEAM_ID: ${{ inputs.team_id }}
+          FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ inputs.game_name }}-iOS-Build"
+          path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.output_ipa_name }}"
