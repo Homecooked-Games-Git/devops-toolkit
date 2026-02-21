@@ -1,4 +1,4 @@
-name: Unity iOS Build & Deploy
+name: Unity Build & Deploy
 
 on:
   workflow_call:
@@ -7,6 +7,11 @@ on:
         description: "Human-readable name (used in job/artifact names and IPA filename)"
         required: true
         type: string
+      build_target:
+        description: "Platform to build"
+        required: false
+        type: string
+        default: "iOS"
       xcode_project_dir:
         required: false
         type: string
@@ -24,9 +29,16 @@ on:
         required: false
         type: string
         default: "None"
+      android_app_bundle:
+        description: "Build AAB instead of APK (for Play Store)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
+  # ── iOS ──────────────────────────────────────────────
   build-ios:
+    if: inputs.build_target == 'iOS'
     name: "Build iOS - ${{ inputs.game_name }}"
     runs-on: [self-hosted, macOS]
 
@@ -75,3 +87,45 @@ jobs:
         with:
           name: "${{ inputs.game_name }}-iOS-Build"
           path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.game_name }}.ipa"
+
+  # ── Android ──────────────────────────────────────────
+  build-android:
+    if: inputs.build_target == 'Android'
+    name: "Build Android - ${{ inputs.game_name }}"
+    runs-on: [self-hosted, macOS]
+
+    env:
+      PATH: /opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          clean: false
+          fetch-depth: 0
+
+      - name: Clean Workspace Artifacts
+        run: git clean -fdx --exclude=Library
+
+      - name: Build Android via GameCI
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          ANDROID_KEYSTORE_NAME: ${{ secrets.ANDROID_KEYSTORE_NAME }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ANDROID_KEYALIAS_NAME: ${{ secrets.ANDROID_KEYALIAS_NAME }}
+          ANDROID_KEYALIAS_PASS: ${{ secrets.ANDROID_KEYALIAS_PASS }}
+        with:
+          targetPlatform: Android
+          skipActivation: true
+          allowDirtyBuild: true
+          versioning: ${{ inputs.unity_versioning }}
+          androidAppBundle: ${{ inputs.android_app_bundle }}
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ inputs.game_name }}-Android-Build"
+          path: build/Android
