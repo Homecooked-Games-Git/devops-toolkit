@@ -21,7 +21,7 @@ def resolve_app_identifier
   root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
   path = File.join(root, "ProjectSettings", "ProjectSettings.asset")
   settings = File.read(path)
-  m = settings.match(/applicationIdentifier:.*?iPhone:\s*(.+)/m)
+  m = settings.match(/applicationIdentifier:.*?iPhone:\s*([\w.]+)/m)
   UI.user_error!("No iPhone app identifier found in #{path}") unless m
   m[1].strip
 end
