@@ -14,11 +14,15 @@ default_platform(:ios)
 
 TEAM_ID = "X3DPX6VLNN"
 
-# Read iOS bundle identifier from Unity ProjectSettings
+# Read iOS bundle identifier from Unity ProjectSettings.
+# GITHUB_WORKSPACE anchors the path when imported via import_from_git
+# (which runs from a temp clone directory).
 def resolve_app_identifier
-  settings = File.read("ProjectSettings/ProjectSettings.asset")
+  root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
+  path = File.join(root, "ProjectSettings", "ProjectSettings.asset")
+  settings = File.read(path)
   m = settings.match(/applicationIdentifier:.*?iPhone:\s*(.+)/m)
-  UI.user_error!("No iPhone app identifier found in ProjectSettings.asset") unless m
+  UI.user_error!("No iPhone app identifier found in #{path}") unless m
   m[1].strip
 end
 
