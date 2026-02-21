@@ -4,8 +4,7 @@
 #   import_from_git(url: "https://github.com/Homecooked-Games-Git/devops-toolkit.git",
 #                   branch: "v1", path: "fastlane/Fastfile")
 #
-# Per-game config is read from the project's fastlane/Matchfile:
-#   app_identifier  (bundle id)
+# app_identifier is read automatically from ProjectSettings/ProjectSettings.asset
 #
 # The reusable workflow sets:
 #   FL_GAME_NAME           - used for IPA filename
@@ -15,16 +14,12 @@ default_platform(:ios)
 
 TEAM_ID = "X3DPX6VLNN"
 
-# Resolve app_identifier from Appfile first, then fall back to Matchfile
+# Read iOS bundle identifier from Unity ProjectSettings
 def resolve_app_identifier
-  id = CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier)
-  return id if id
-
-  matchfile = File.join(FastlaneCore::FastlaneFolder.path || "fastlane", "Matchfile")
-  content = File.read(matchfile) rescue ""
-  m = content.match(/app_identifier\(\[?"([^"]+)"/)
-  UI.user_error!("No app_identifier found in Appfile or Matchfile") unless m
-  m[1]
+  settings = File.read("ProjectSettings/ProjectSettings.asset")
+  m = settings.match(/applicationIdentifier:.*?iPhone:\s*(.+)/m)
+  UI.user_error!("No iPhone app identifier found in ProjectSettings.asset") unless m
+  m[1].strip
 end
 
 platform :ios do
