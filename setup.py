@@ -297,7 +297,7 @@ def main():
         sys.exit(1)
 
     game_name = sys.argv[1]
-    project_id = game_name.lower().replace(" ", "-")
+    project_id = "hcg-" + game_name.lower().replace(" ", "-")
 
     print(f"Setting up CI/CD for {game_name}...\n")
 

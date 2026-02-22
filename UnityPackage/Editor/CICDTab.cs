@@ -164,9 +164,12 @@ namespace HomecookedGames.DevOps.Editor
 
         // ── Actions ──
 
+        static string ToFirebaseProjectId(string gameName) =>
+            "hcg-" + gameName.ToLower().Replace(" ", "-");
+
         void CreateFirebaseProject()
         {
-            var projectId = _gameName.ToLower().Replace(" ", "-");
+            var projectId = ToFirebaseProjectId(_gameName);
             var iosBundleId = _checker.Project.IOSBundleId;
             var androidBundleId = _checker.Project.AndroidBundleId;
 
@@ -197,7 +200,7 @@ namespace HomecookedGames.DevOps.Editor
             var projectId = GetFirebaseProjectId();
             if (string.IsNullOrEmpty(projectId))
             {
-                projectId = _gameName.ToLower().Replace(" ", "-");
+                projectId = ToFirebaseProjectId(_gameName);
             }
 
             var settingsDir = Path.Combine(_checker.ProjectRoot, "Assets", "Settings");
@@ -222,7 +225,7 @@ namespace HomecookedGames.DevOps.Editor
         {
             var projectId = GetFirebaseProjectId();
             if (string.IsNullOrEmpty(projectId))
-                projectId = _gameName.ToLower().Replace(" ", "-");
+                projectId = ToFirebaseProjectId(_gameName);
             Application.OpenURL($"https://console.firebase.google.com/project/{projectId}");
         }
 
