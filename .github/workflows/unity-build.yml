@@ -130,9 +130,18 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
 
+      - name: Set up Ruby 3.3
+        if: inputs.distribution != 'None'
+        run: |
+          echo "/opt/homebrew/opt/ruby@3.3/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/lib/ruby/gems/3.3.0/bin" >> "$GITHUB_PATH"
+
       - name: Install Ruby Dependencies
         if: inputs.distribution != 'None'
-        run: bundle install
+        run: |
+          echo "Ruby: $(ruby --version)"
+          echo "Bundle: $(which bundle)"
+          bundle install
 
       - name: Run Fastlane
         if: inputs.distribution != 'None'
@@ -236,9 +245,18 @@ jobs:
           versioning: ${{ inputs.unity_versioning }}
           androidAppBundle: ${{ inputs.android_app_bundle }}
 
+      - name: Set up Ruby 3.3
+        if: inputs.distribution == 'Firebase'
+        run: |
+          echo "/opt/homebrew/opt/ruby@3.3/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/lib/ruby/gems/3.3.0/bin" >> "$GITHUB_PATH"
+
       - name: Install Ruby Dependencies
         if: inputs.distribution == 'Firebase'
-        run: bundle install
+        run: |
+          echo "Ruby: $(ruby --version)"
+          echo "Bundle: $(which bundle)"
+          bundle install
 
       - name: Run Fastlane
         if: inputs.distribution == 'Firebase'
