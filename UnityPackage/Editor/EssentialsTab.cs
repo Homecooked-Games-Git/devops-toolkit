@@ -19,10 +19,11 @@ namespace HomecookedGames.DevOps.Editor
         {
             public string DisplayName;
             public string PackageName;
-            public string SubPath; // subfolder in the monorepo
+            public string SubPath; // subfolder in the monorepo (null if using custom git URL)
             public string AssetsFolderPath; // fallback detection path under Assets/ (null if UPM-only)
+            public string CustomGitUrl; // override git URL for public packages (null = use PluginsRepoBase)
 
-            public string GitUrl => $"{PluginsRepoBase}?path=/{SubPath}#main";
+            public string GitUrl => CustomGitUrl ?? $"{PluginsRepoBase}?path=/{SubPath}#main";
             public string RemotePackageJsonUrl => $"{RawRepoBase}/{SubPath}/package.json";
         }
 
@@ -33,6 +34,7 @@ namespace HomecookedGames.DevOps.Editor
             new() { DisplayName = "DoTween", PackageName = "com.demigiant.dotween", SubPath = "DoTween", AssetsFolderPath = "Assets/Plugins/Demigiant" },
             new() { DisplayName = "Easy Save 3", PackageName = "com.moodkie.easysave3", SubPath = "EasySave3", AssetsFolderPath = "Assets/Plugins/Easy Save 3" },
             new() { DisplayName = "HotReload", PackageName = "com.singularitygroup.hotreload", SubPath = "HotReload", AssetsFolderPath = null },
+            new() { DisplayName = "Unity MCP", PackageName = "com.coplaydev.unity-mcp", CustomGitUrl = "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main" },
         };
 
         enum InstallSource { None, UPM, AssetsFolder }
