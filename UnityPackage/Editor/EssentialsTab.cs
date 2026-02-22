@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.PackageManager;
@@ -19,6 +20,7 @@ namespace HomecookedGames.DevOps.Editor
             public string DisplayName;
             public string PackageName;
             public string SubPath; // subfolder in the monorepo
+            public string AssetsFolderPath; // fallback detection path under Assets/ (null if UPM-only)
 
             public string GitUrl => $"{PluginsRepoBase}?path=/{SubPath}#main";
             public string RemotePackageJsonUrl => $"{RawRepoBase}/{SubPath}/package.json";
@@ -26,18 +28,20 @@ namespace HomecookedGames.DevOps.Editor
 
         static readonly PluginInfo[] Plugins =
         {
-            new() { DisplayName = "SRDebugger", PackageName = "com.stompyrobot.srdebugger", SubPath = "SRDebugger" },
-            new() { DisplayName = "Odin Inspector", PackageName = "com.sirenix.odin-inspector", SubPath = "OdinInspector" },
-            new() { DisplayName = "DoTween", PackageName = "com.demigiant.dotween", SubPath = "DoTween" },
-            new() { DisplayName = "Easy Save 3", PackageName = "com.moodkie.easysave3", SubPath = "EasySave3" },
-            new() { DisplayName = "HotReload", PackageName = "com.singularitygroup.hotreload", SubPath = "HotReload" },
+            new() { DisplayName = "SRDebugger", PackageName = "com.stompyrobot.srdebugger", SubPath = "SRDebugger", AssetsFolderPath = "Assets/Plugins/StompyRobot" },
+            new() { DisplayName = "Odin Inspector", PackageName = "com.sirenix.odin-inspector", SubPath = "OdinInspector", AssetsFolderPath = "Assets/Plugins/Sirenix" },
+            new() { DisplayName = "DoTween", PackageName = "com.demigiant.dotween", SubPath = "DoTween", AssetsFolderPath = "Assets/Plugins/Demigiant" },
+            new() { DisplayName = "Easy Save 3", PackageName = "com.moodkie.easysave3", SubPath = "EasySave3", AssetsFolderPath = "Assets/Plugins/Easy Save 3" },
+            new() { DisplayName = "HotReload", PackageName = "com.singularitygroup.hotreload", SubPath = "HotReload", AssetsFolderPath = null },
         };
 
-        // Installed package state
+        enum InstallSource { None, UPM, AssetsFolder }
+
         struct InstalledInfo
         {
             public bool Installed;
             public string Version;
+            public InstallSource Source;
         }
 
         // Remote version state
@@ -142,10 +146,25 @@ namespace HomecookedGames.DevOps.Editor
             GUI.enabled = !IsBusy;
             if (info.Installed)
             {
-                if (updateAvailable && GUILayout.Button("Update", GUILayout.Width(60)))
-                    AddPackage(plugin);
-                if (GUILayout.Button("Remove", GUILayout.Width(60)))
-                    RemovePackage(plugin);
+                if (info.Source == InstallSource.AssetsFolder)
+                {
+                    // Installed via Assets folder — offer migration to UPM
+                    if (GUILayout.Button("Migrate to UPM", GUILayout.Width(100)))
+                    {
+                        if (EditorUtility.DisplayDialog("Migrate to UPM",
+                                $"This will install {plugin.DisplayName} via Package Manager.\n\n" +
+                                $"After verifying it works, manually delete:\n{plugin.AssetsFolderPath}",
+                                "Install", "Cancel"))
+                            AddPackage(plugin);
+                    }
+                }
+                else
+                {
+                    if (updateAvailable && GUILayout.Button("Update", GUILayout.Width(60)))
+                        AddPackage(plugin);
+                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                        RemovePackage(plugin);
+                }
             }
             else
             {
@@ -169,6 +188,8 @@ namespace HomecookedGames.DevOps.Editor
             EditorApplication.update -= PollListRequest;
 
             _installed.Clear();
+
+            // Check UPM packages
             if (_listRequest.Status == StatusCode.Success)
             {
                 var packageNames = new HashSet<string>(Plugins.Select(p => p.PackageName));
@@ -179,9 +200,29 @@ namespace HomecookedGames.DevOps.Editor
                         _installed[pkg.name] = new InstalledInfo
                         {
                             Installed = true,
-                            Version = pkg.version
+                            Version = pkg.version,
+                            Source = InstallSource.UPM
                         };
                     }
+                }
+            }
+
+            // Fallback: check Assets/Plugins/ folders for non-UPM installs
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            foreach (var plugin in Plugins)
+            {
+                if (_installed.ContainsKey(plugin.PackageName)) continue;
+                if (string.IsNullOrEmpty(plugin.AssetsFolderPath)) continue;
+
+                var fullPath = Path.Combine(projectRoot, plugin.AssetsFolderPath);
+                if (Directory.Exists(fullPath))
+                {
+                    _installed[plugin.PackageName] = new InstalledInfo
+                    {
+                        Installed = true,
+                        Version = "Asset Store",
+                        Source = InstallSource.AssetsFolder
+                    };
                 }
             }
 
