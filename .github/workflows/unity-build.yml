@@ -54,7 +54,6 @@ jobs:
     runs-on: [self-hosted, macOS]
 
     env:
-      PATH: /opt/homebrew/opt/ruby@3.3/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
       MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
@@ -130,18 +129,9 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
 
-      - name: Set up Ruby 3.3
-        if: inputs.distribution != 'None'
-        run: |
-          echo "/opt/homebrew/opt/ruby@3.3/bin" >> "$GITHUB_PATH"
-          echo "/opt/homebrew/lib/ruby/gems/3.3.0/bin" >> "$GITHUB_PATH"
-
       - name: Install Ruby Dependencies
         if: inputs.distribution != 'None'
-        run: |
-          echo "Ruby: $(ruby --version)"
-          echo "Bundle: $(which bundle)"
-          bundle install
+        run: /opt/homebrew/opt/ruby@3.3/bin/bundle install
 
       - name: Run Fastlane
         if: inputs.distribution != 'None'
@@ -150,7 +140,7 @@ jobs:
             TestFlight) LANE="ios beta" ;;
             Firebase)   LANE="ios firebase" ;;
           esac
-          bundle exec fastlane ${LANE}
+          /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ${LANE}
         env:
           FL_GAME_NAME: ${{ inputs.game_name }}
           FL_XCODE_PROJECT_DIR: ${{ inputs.xcode_project_dir }}
@@ -169,7 +159,6 @@ jobs:
     runs-on: [self-hosted, macOS]
 
     env:
-      PATH: /opt/homebrew/opt/ruby@3.3/bin:/opt/homebrew/lib/ruby/gems/3.3.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
 
     steps:
@@ -245,22 +234,13 @@ jobs:
           versioning: ${{ inputs.unity_versioning }}
           androidAppBundle: ${{ inputs.android_app_bundle }}
 
-      - name: Set up Ruby 3.3
-        if: inputs.distribution == 'Firebase'
-        run: |
-          echo "/opt/homebrew/opt/ruby@3.3/bin" >> "$GITHUB_PATH"
-          echo "/opt/homebrew/lib/ruby/gems/3.3.0/bin" >> "$GITHUB_PATH"
-
       - name: Install Ruby Dependencies
         if: inputs.distribution == 'Firebase'
-        run: |
-          echo "Ruby: $(ruby --version)"
-          echo "Bundle: $(which bundle)"
-          bundle install
+        run: /opt/homebrew/opt/ruby@3.3/bin/bundle install
 
       - name: Run Fastlane
         if: inputs.distribution == 'Firebase'
-        run: bundle exec fastlane android firebase
+        run: /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane android firebase
         env:
           FL_GAME_NAME: ${{ inputs.game_name }}
           FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
