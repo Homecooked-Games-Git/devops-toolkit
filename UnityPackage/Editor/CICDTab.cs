@@ -12,7 +12,7 @@ namespace HomecookedGames.DevOps.Editor
 
         string _gameName;
         Vector2 _cliScrollPos;
-        bool _showCliOutput;
+        bool _showCliOutput = true;
 
         public CICDTab(StatusChecker checker, ProcessRunner runner)
         {
