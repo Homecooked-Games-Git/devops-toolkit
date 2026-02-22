@@ -71,6 +71,7 @@ namespace HomecookedGames.DevOps.Editor
         public MatchfileInfo Matchfile { get; private set; }
         public GemfileInfo Gemfile { get; private set; }
         public ComponentStatus GitIgnore { get; private set; }
+        public ComponentStatus SetupYml { get; private set; }
         public ServiceAccountInfo ServiceAccount { get; set; }
 
         public StatusChecker()
@@ -88,6 +89,7 @@ namespace HomecookedGames.DevOps.Editor
             RefreshMatchfile();
             RefreshGemfile();
             RefreshGitIgnore();
+            RefreshSetupYml();
         }
 
         void RefreshProjectInfo()
@@ -197,6 +199,12 @@ namespace HomecookedGames.DevOps.Editor
         {
             var path = Path.Combine(ProjectRoot, ".gitignore");
             GitIgnore = File.Exists(path) ? ComponentStatus.Present : ComponentStatus.Missing;
+        }
+
+        void RefreshSetupYml()
+        {
+            var path = Path.Combine(ProjectRoot, ".github", "workflows", "setup.yml");
+            SetupYml = File.Exists(path) ? ComponentStatus.Present : ComponentStatus.Missing;
         }
 
         static string ExtractPlistValue(string content, string key)

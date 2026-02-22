@@ -7,12 +7,20 @@ namespace HomecookedGames.DevOps.Editor
 {
     public class CICDTab
     {
+        enum StepStatus { Pending, InProgress, Done, Failed }
+
         readonly StatusChecker _checker;
         readonly ProcessRunner _runner;
 
         string _gameName;
         Vector2 _cliScrollPos;
         bool _showCliOutput = true;
+
+        // Wizard step statuses
+        StepStatus _step1Status; // Generate Boilerplate
+        StepStatus _step2Status; // Commit & Push
+        StepStatus _step3Status; // Firebase Setup (Remote)
+        StepStatus _step4Status; // Pull Configs
 
         public CICDTab(StatusChecker checker, ProcessRunner runner)
         {
@@ -24,13 +32,14 @@ namespace HomecookedGames.DevOps.Editor
         {
             _checker.Refresh();
             _gameName = _checker.Project.ProductName?.Replace(" ", "") ?? "MyGame";
+            RefreshStepStatuses();
         }
 
         public void OnGUI()
         {
             DrawProjectInfo();
             EditorGUILayout.Space(10);
-            DrawFullSetupSection();
+            DrawSetupWizard();
             EditorGUILayout.Space(10);
             DrawFirebaseSection();
             EditorGUILayout.Space(10);
@@ -39,6 +48,27 @@ namespace HomecookedGames.DevOps.Editor
             if (_showCliOutput || _runner.IsRunning)
                 DrawCliOutput();
         }
+
+        void RefreshStepStatuses()
+        {
+            // Step 1: Done if all boilerplate files exist
+            bool allBoilerplate = _checker.Workflow.Status == ComponentStatus.Present
+                && _checker.Fastfile.Status == ComponentStatus.Present
+                && _checker.Matchfile.Status == ComponentStatus.Present
+                && _checker.Gemfile.Status == ComponentStatus.Present
+                && _checker.GitIgnore == ComponentStatus.Present
+                && _checker.SetupYml == ComponentStatus.Present;
+            if (allBoilerplate && _step1Status != StepStatus.InProgress)
+                _step1Status = StepStatus.Done;
+
+            // Step 4: Done if Firebase configs exist
+            if (_checker.FirebaseIOS.Status == ComponentStatus.Present
+                && _checker.FirebaseAndroid.Status == ComponentStatus.Present
+                && _step4Status != StepStatus.InProgress)
+                _step4Status = StepStatus.Done;
+        }
+
+        // ── UI Sections ──
 
         void DrawProjectInfo()
         {
@@ -49,6 +79,66 @@ namespace HomecookedGames.DevOps.Editor
             EditorGUILayout.LabelField("Android Bundle ID", _checker.Project.AndroidBundleId ?? "—");
             _gameName = EditorGUILayout.TextField("Game Name", _gameName);
             EditorGUI.indentLevel--;
+        }
+
+        void DrawSetupWizard()
+        {
+            EditorGUILayout.LabelField("Project Setup", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+
+            // Step 1: Generate Boilerplate
+            DrawWizardStep(1, "Generate Boilerplate", _step1Status,
+                enabled: _step1Status != StepStatus.InProgress && _step1Status != StepStatus.Done,
+                buttonLabel: "Generate",
+                onClick: WizardGenerate);
+
+            // Step 2: Commit & Push
+            DrawWizardStep(2, "Commit & Push", _step2Status,
+                enabled: _step1Status == StepStatus.Done
+                    && _step2Status != StepStatus.InProgress
+                    && _step2Status != StepStatus.Done,
+                buttonLabel: "Commit & Push",
+                onClick: WizardCommitPush);
+
+            // Step 3: Firebase Setup (Remote)
+            DrawWizardStep(3, "Firebase Setup (Remote)", _step3Status,
+                enabled: _step2Status == StepStatus.Done
+                    && _step3Status != StepStatus.InProgress
+                    && _step3Status != StepStatus.Done,
+                buttonLabel: "Run Setup",
+                onClick: WizardFirebaseSetup);
+
+            // Step 4: Pull Configs
+            DrawWizardStep(4, "Pull Configs", _step4Status,
+                enabled: _step3Status == StepStatus.Done
+                    && _step4Status != StepStatus.InProgress
+                    && _step4Status != StepStatus.Done,
+                buttonLabel: "Pull",
+                onClick: WizardPull);
+
+            EditorGUI.indentLevel--;
+        }
+
+        void DrawWizardStep(int stepNum, string label, StepStatus status, bool enabled, string buttonLabel, Action onClick)
+        {
+            EditorGUILayout.BeginHorizontal();
+
+            var icon = status switch
+            {
+                StepStatus.Done => EditorGUIUtility.IconContent("TestPassed"),
+                StepStatus.Failed => EditorGUIUtility.IconContent("TestFailed"),
+                StepStatus.InProgress => EditorGUIUtility.IconContent("WaitSpin00"),
+                _ => EditorGUIUtility.IconContent("TestNormal")
+            };
+            GUILayout.Label(icon, GUILayout.Width(20), GUILayout.Height(20));
+            GUILayout.Label($"Step {stepNum}: {label}", GUILayout.Width(220));
+
+            GUI.enabled = enabled && !_runner.IsRunning;
+            if (GUILayout.Button(buttonLabel, GUILayout.Width(100)))
+                onClick();
+            GUI.enabled = true;
+
+            EditorGUILayout.EndHorizontal();
         }
 
         void DrawFirebaseSection()
@@ -121,6 +211,8 @@ namespace HomecookedGames.DevOps.Editor
             DrawStatusLine(wf.Status, "build.yml",
                 wf.Status == ComponentStatus.Present ? $"game_name: {wf.GameName}" : null);
 
+            DrawStatusLine(_checker.SetupYml, "setup.yml");
+
             DrawStatusLine(_checker.Fastfile.Status, "Fastfile");
 
             var mf = _checker.Matchfile;
@@ -147,20 +239,6 @@ namespace HomecookedGames.DevOps.Editor
                 RemoveBoilerplate();
             if (GUILayout.Button("Update .gitignore", GUILayout.Width(120)))
                 UpdateGitIgnore();
-
-            GUI.enabled = true;
-            EditorGUILayout.EndHorizontal();
-        }
-
-        void DrawFullSetupSection()
-        {
-            EditorGUILayout.LabelField("Full Setup", EditorStyles.boldLabel);
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(16);
-            GUI.enabled = !_runner.IsRunning;
-
-            if (GUILayout.Button("Run setup.py", GUILayout.Width(100)))
-                RunSetupPy();
 
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
@@ -193,7 +271,83 @@ namespace HomecookedGames.DevOps.Editor
             }
         }
 
-        // ── Actions ──
+        // ── Wizard Actions ──
+
+        void WizardGenerate()
+        {
+            _step1Status = StepStatus.InProgress;
+            GenerateBoilerplate();
+            _step1Status = StepStatus.Done;
+        }
+
+        void WizardCommitPush()
+        {
+            _step2Status = StepStatus.InProgress;
+            _runner.ClearOutput();
+
+            var scriptPath = Path.Combine(Path.GetTempPath(), "devops_commit_push.sh");
+            File.WriteAllText(scriptPath,
+                "#!/bin/bash\nset -e\n" +
+                "git add .github/workflows/build.yml .github/workflows/setup.yml " +
+                "fastlane/Fastfile fastlane/Matchfile Gemfile Gemfile.lock .gitignore\n" +
+                "git commit -m \"Add CI/CD boilerplate\"\n" +
+                "git push\n");
+
+            _runner.Run("/bin/bash", scriptPath,
+                _checker.ProjectRoot, () =>
+                {
+                    if (string.IsNullOrEmpty(_runner.Error) || !_runner.Error.Contains("fatal"))
+                        _step2Status = StepStatus.Done;
+                    else
+                        _step2Status = StepStatus.Failed;
+                });
+        }
+
+        void WizardFirebaseSetup()
+        {
+            _step3Status = StepStatus.InProgress;
+            _runner.ClearOutput();
+
+            var scriptPath = Path.Combine(Path.GetTempPath(), "devops_firebase_setup.sh");
+            File.WriteAllText(scriptPath, @"#!/bin/bash
+set -e
+gh workflow run setup.yml
+sleep 5
+RUN_ID=$(gh run list --workflow=setup.yml --limit=1 --json databaseId -q '.[0].databaseId')
+echo ""Watching workflow run $RUN_ID...""
+gh run watch $RUN_ID --exit-status
+");
+
+            _runner.Run("/bin/bash", scriptPath,
+                _checker.ProjectRoot, () =>
+                {
+                    if (_runner.Output.Contains("completed") && !_runner.Output.Contains("failed"))
+                        _step3Status = StepStatus.Done;
+                    else
+                        _step3Status = StepStatus.Failed;
+                });
+        }
+
+        void WizardPull()
+        {
+            _step4Status = StepStatus.InProgress;
+            _runner.ClearOutput();
+            _runner.Run("git", "pull",
+                _checker.ProjectRoot, () =>
+                {
+                    AssetDatabase.Refresh();
+                    _checker.Refresh();
+                    RefreshStepStatuses();
+
+                    if (_checker.FirebaseIOS.Status == ComponentStatus.Present
+                        && _checker.FirebaseAndroid.Status == ComponentStatus.Present)
+                        _step4Status = StepStatus.Done;
+                    else
+                        _step4Status = StepStatus.Failed;
+                });
+        }
+
+        // ── Firebase Actions ──
 
         static string ToFirebaseProjectId(string gameName) =>
             "hcg-" + gameName.ToLower().Replace(" ", "-");
@@ -328,11 +482,15 @@ namespace HomecookedGames.DevOps.Editor
             Application.OpenURL($"https://console.firebase.google.com/project/{projectId}");
         }
 
+        // ── Boilerplate Actions ──
+
         void GenerateBoilerplate()
         {
             var root = _checker.ProjectRoot;
 
             WriteIfMissing(Path.Combine(root, ".github", "workflows", "build.yml"), Templates.BuildYml(_gameName));
+            WriteIfMissing(Path.Combine(root, ".github", "workflows", "setup.yml"),
+                Templates.SetupYml(_gameName, _checker.Project.IOSBundleId, _checker.Project.AndroidBundleId));
             WriteIfMissing(Path.Combine(root, "fastlane", "Fastfile"), Templates.Fastfile());
             WriteIfMissing(Path.Combine(root, "fastlane", "Matchfile"), Templates.Matchfile());
             WriteIfMissing(Path.Combine(root, "Gemfile"), Templates.Gemfile());
@@ -344,6 +502,7 @@ namespace HomecookedGames.DevOps.Editor
                 WriteIfMissing(Path.Combine(root, "Gemfile.lock"), File.ReadAllText(lockTemplatePath));
 
             _checker.Refresh();
+            RefreshStepStatuses();
             Debug.Log("CI/CD boilerplate generated.");
         }
 
@@ -358,39 +517,21 @@ namespace HomecookedGames.DevOps.Editor
         void RemoveBoilerplate()
         {
             if (!EditorUtility.DisplayDialog("Remove CI/CD Boilerplate",
-                    "This will delete build.yml, Fastfile, Matchfile, and Gemfile. Continue?",
+                    "This will delete build.yml, setup.yml, Fastfile, Matchfile, and Gemfile. Continue?",
                     "Delete", "Cancel"))
                 return;
 
             var root = _checker.ProjectRoot;
             DeleteIfExists(Path.Combine(root, ".github", "workflows", "build.yml"));
+            DeleteIfExists(Path.Combine(root, ".github", "workflows", "setup.yml"));
             DeleteIfExists(Path.Combine(root, "fastlane", "Fastfile"));
             DeleteIfExists(Path.Combine(root, "fastlane", "Matchfile"));
             DeleteIfExists(Path.Combine(root, "Gemfile"));
             DeleteIfExists(Path.Combine(root, "Gemfile.lock"));
 
             _checker.Refresh();
+            RefreshStepStatuses();
             Debug.Log("CI/CD boilerplate removed.");
-        }
-
-        void RunSetupPy()
-        {
-            // Look for setup.py relative to this package's location or use a known path
-            var setupPyPath = FindSetupPy();
-            if (setupPyPath == null)
-            {
-                Debug.LogError("setup.py not found. Ensure devops-toolkit is accessible.");
-                return;
-            }
-
-            _runner.ClearOutput();
-            _runner.Run(ProcessRunner.PythonCommand,
-                $"\"{setupPyPath}\" \"{_gameName}\"",
-                _checker.ProjectRoot, () =>
-                {
-                    AssetDatabase.Refresh();
-                    _checker.Refresh();
-                });
         }
 
         // ── Helpers ──
@@ -401,26 +542,6 @@ namespace HomecookedGames.DevOps.Editor
                 return _checker.FirebaseIOS.ProjectId;
             if (_checker.FirebaseAndroid.Status == ComponentStatus.Present)
                 return _checker.FirebaseAndroid.ProjectId;
-            return null;
-        }
-
-        static string FindSetupPy()
-        {
-            // Check known locations
-            var candidates = new[]
-            {
-                // Sibling to the Unity project
-                Path.Combine(Application.dataPath, "..", "..", "devops-toolkit", "setup.py"),
-                // In the package cache (when installed via git)
-                Path.Combine(GetPackagePath(), "..", "setup.py"),
-            };
-
-            foreach (var path in candidates)
-            {
-                var full = Path.GetFullPath(path);
-                if (File.Exists(full)) return full;
-            }
-
             return null;
         }
 

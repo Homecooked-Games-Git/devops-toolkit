@@ -1,0 +1,66 @@
+name: Firebase Setup
+
+on:
+  workflow_call:
+    inputs:
+      game_name:
+        required: true
+        type: string
+      ios_bundle_id:
+        required: true
+        type: string
+      android_bundle_id:
+        required: true
+        type: string
+
+jobs:
+  setup:
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Firebase Project
+        run: |
+          firebase projects:create "hcg-$GAME" --display-name "$GAME" 2>&1 || echo "Project may already exist"
+        env:
+          GAME: ${{ inputs.game_name }}
+
+      - name: Register iOS App
+        run: |
+          firebase apps:create ios --bundle-id "$IOS_ID" --project "hcg-$GAME" 2>&1 || echo "App may already exist"
+        env:
+          GAME: ${{ inputs.game_name }}
+          IOS_ID: ${{ inputs.ios_bundle_id }}
+
+      - name: Register Android App
+        run: |
+          firebase apps:create android --package-name "$ANDROID_ID" --project "hcg-$GAME" 2>&1 || echo "App may already exist"
+        env:
+          GAME: ${{ inputs.game_name }}
+          ANDROID_ID: ${{ inputs.android_bundle_id }}
+
+      - name: Download Firebase Configs
+        run: |
+          mkdir -p Assets/Settings
+          rm -f Assets/Settings/GoogleService-Info.plist Assets/Settings/google-services.json
+          firebase apps:sdkconfig ios --project "hcg-$GAME" --out "Assets/Settings/GoogleService-Info.plist"
+          firebase apps:sdkconfig android --project "hcg-$GAME" --out "Assets/Settings/google-services.json"
+        env:
+          GAME: ${{ inputs.game_name }}
+
+      - name: Add CI Service Account
+        run: |
+          gcloud projects add-iam-policy-binding "hcg-$GAME" \
+            --member="serviceAccount:ci-distribution@hcgamesfirebase.iam.gserviceaccount.com" \
+            --role="roles/firebaseappdistro.admin" --quiet 2>&1 || echo "Binding may already exist"
+        env:
+          GAME: ${{ inputs.game_name }}
+
+      - name: Commit & Push Configs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Assets/Settings/GoogleService-Info.plist Assets/Settings/google-services.json
+          git add Assets/Settings/GoogleService-Info.plist.meta Assets/Settings/google-services.json.meta 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Add Firebase config files [automated]"
+          git push

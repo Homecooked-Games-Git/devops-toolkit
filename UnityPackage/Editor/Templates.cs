@@ -163,5 +163,20 @@ fastlane/api_key.json
 fastlane/AuthKey*.p8
 fastlane/report.xml
 ";
+
+        public static string SetupYml(string gameName, string iosBundleId, string androidBundleId) => $@"name: Firebase Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    uses: Homecooked-Games-Git/devops-toolkit/.github/workflows/firebase-setup.yml@main
+    with:
+      game_name: ""{gameName}""
+      ios_bundle_id: ""{iosBundleId}""
+      android_bundle_id: ""{androidBundleId}""
+    secrets: inherit
+";
     }
 }
