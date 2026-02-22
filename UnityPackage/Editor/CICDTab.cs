@@ -66,6 +66,33 @@ namespace HomecookedGames.DevOps.Editor
             DrawStatusLine(android.Status, "Android Config",
                 android.Status == ComponentStatus.Present ? $"project: {android.ProjectId}" : null);
 
+            // Service account
+            var sa = _checker.ServiceAccount;
+            EditorGUILayout.BeginHorizontal();
+            {
+                var icon = !sa.Checked
+                    ? EditorGUIUtility.IconContent("TestNormal")
+                    : sa.Status == ComponentStatus.Present
+                        ? EditorGUIUtility.IconContent("TestPassed")
+                        : EditorGUIUtility.IconContent("TestFailed");
+                GUILayout.Label(icon, GUILayout.Width(20), GUILayout.Height(20));
+                GUILayout.Label("Service Acct", GUILayout.Width(100));
+
+                var detail = !sa.Checked ? "not checked" : sa.Status == ComponentStatus.Present ? "configured" : "not added";
+                GUILayout.Label(detail, EditorStyles.miniLabel);
+
+                GUI.enabled = !_runner.IsRunning;
+                if (GUILayout.Button("Check", GUILayout.Width(50)))
+                    CheckServiceAccount();
+                if (sa.Checked && sa.Status == ComponentStatus.Missing && !string.IsNullOrEmpty(sa.ProjectId))
+                {
+                    if (GUILayout.Button("Add", GUILayout.Width(40)))
+                        AddServiceAccount(sa.ProjectId);
+                }
+                GUI.enabled = true;
+            }
+            EditorGUILayout.EndHorizontal();
+
             EditorGUI.indentLevel--;
             EditorGUILayout.Space(4);
 
@@ -222,6 +249,44 @@ namespace HomecookedGames.DevOps.Editor
                             AssetDatabase.Refresh();
                             _checker.Refresh();
                         });
+                });
+        }
+
+        const string CIServiceAccount = "ci-distribution@hcgamesfirebase.iam.gserviceaccount.com";
+
+        void CheckServiceAccount()
+        {
+            var projectId = GetFirebaseProjectId();
+            if (string.IsNullOrEmpty(projectId))
+                projectId = ToFirebaseProjectId(_gameName);
+
+            _runner.ClearOutput();
+            _runner.Run("gcloud",
+                $"projects get-iam-policy {projectId} --flatten=\"bindings[].members\" " +
+                $"--filter=\"bindings.members:serviceAccount:{CIServiceAccount}\" " +
+                $"--format=\"value(bindings.role)\"",
+                _checker.ProjectRoot, () =>
+                {
+                    var output = _runner.Output;
+                    _checker.ServiceAccount = new ServiceAccountInfo
+                    {
+                        Status = output.Contains("firebaseappdistro") ? ComponentStatus.Present : ComponentStatus.Missing,
+                        ProjectId = projectId,
+                        Checked = true
+                    };
+                });
+        }
+
+        void AddServiceAccount(string projectId)
+        {
+            _runner.ClearOutput();
+            _runner.Run("gcloud",
+                $"projects add-iam-policy-binding {projectId} " +
+                $"--member=\"serviceAccount:{CIServiceAccount}\" " +
+                $"--role=\"roles/firebaseappdistro.admin\" --quiet",
+                _checker.ProjectRoot, () =>
+                {
+                    CheckServiceAccount();
                 });
         }
 

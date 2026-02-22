@@ -44,6 +44,13 @@ namespace HomecookedGames.DevOps.Editor
         public bool HasLockFile;
     }
 
+    public struct ServiceAccountInfo
+    {
+        public ComponentStatus Status;
+        public string ProjectId;
+        public bool Checked;
+    }
+
     public struct ProjectInfo
     {
         public string ProductName;
@@ -64,6 +71,7 @@ namespace HomecookedGames.DevOps.Editor
         public MatchfileInfo Matchfile { get; private set; }
         public GemfileInfo Gemfile { get; private set; }
         public ComponentStatus GitIgnore { get; private set; }
+        public ServiceAccountInfo ServiceAccount { get; set; }
 
         public StatusChecker()
         {
