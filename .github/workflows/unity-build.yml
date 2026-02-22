@@ -129,6 +129,16 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
 
+      - name: Set up Ruby 3.3
+        if: inputs.distribution != 'None'
+        run: |
+          if ! /opt/homebrew/opt/ruby@3.3/bin/ruby --version 2>/dev/null; then
+            echo "Installing Ruby 3.3..."
+            brew install ruby@3.3
+          fi
+          /opt/homebrew/opt/ruby@3.3/bin/gem install bundler --conservative
+          echo "Ruby: $(/opt/homebrew/opt/ruby@3.3/bin/ruby --version)"
+
       - name: Install Ruby Dependencies
         if: inputs.distribution != 'None'
         run: /opt/homebrew/opt/ruby@3.3/bin/bundle install
@@ -233,6 +243,16 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
           androidAppBundle: ${{ inputs.android_app_bundle }}
+
+      - name: Set up Ruby 3.3
+        if: inputs.distribution == 'Firebase'
+        run: |
+          if ! /opt/homebrew/opt/ruby@3.3/bin/ruby --version 2>/dev/null; then
+            echo "Installing Ruby 3.3..."
+            brew install ruby@3.3
+          fi
+          /opt/homebrew/opt/ruby@3.3/bin/gem install bundler --conservative
+          echo "Ruby: $(/opt/homebrew/opt/ruby@3.3/bin/ruby --version)"
 
       - name: Install Ruby Dependencies
         if: inputs.distribution == 'Firebase'
