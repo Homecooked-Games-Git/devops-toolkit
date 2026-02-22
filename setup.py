@@ -100,8 +100,13 @@ def check_prerequisites():
         run("firebase login", check=False)
 
 
-def read_bundle_ids():
-    """Read iOS and Android bundle IDs from ProjectSettings.asset."""
+def read_bundle_ids(game_name):
+    """Read iOS and Android bundle IDs from ProjectSettings.asset.
+
+    If overrideDefaultApplicationIdentifier is enabled but per-platform IDs
+    are missing, disable it so Unity uses the default ID for all platforms.
+    Falls back to deriving a bundle ID from the game name if needed.
+    """
     settings_path = Path("ProjectSettings") / "ProjectSettings.asset"
     if not settings_path.exists():
         print(f"Error: {settings_path} not found. Run this from a Unity project root.")
@@ -109,14 +114,15 @@ def read_bundle_ids():
 
     content = settings_path.read_text(encoding="utf-8")
 
-    ios_id = None
-    android_id = None
-
     # Extract the applicationIdentifier block (indented lines after the key,
-    # stopping at the next top-level key). This prevents re.DOTALL from
-    # overshooting into buildNumber: where "iPhone: 0" is a build number.
+    # stopping at the next top-level key). This prevents matching fields from
+    # other blocks like buildNumber.
     block_m = re.search(r"applicationIdentifier:\n((?:[ \t]+.+\n)*)", content)
     block = block_m.group(1) if block_m else ""
+
+    ios_id = None
+    android_id = None
+    default_id = None
 
     m = re.search(r"iPhone:\s*([\w.]+)", block)
     if m:
@@ -126,10 +132,26 @@ def read_bundle_ids():
     if m:
         android_id = m.group(1).strip()
 
+    m = re.search(r"Standalone:\s*([\w.]+)", block)
+    if m:
+        default_id = m.group(1).strip()
+
+    # If per-platform IDs are missing, disable override so Unity uses the
+    # default applicationIdentifier for all platforms.
     if not ios_id or not android_id:
-        print(f"Warning: Could not parse all bundle IDs from {settings_path}")
-        print(f"  iOS: {ios_id or 'NOT FOUND'}")
-        print(f"  Android: {android_id or 'NOT FOUND'}")
+        override_m = re.search(r"overrideDefaultApplicationIdentifier:\s*1", content)
+        if override_m:
+            print("Disabling overrideDefaultApplicationIdentifier (per-platform IDs not set)...")
+            content = content.replace(
+                "overrideDefaultApplicationIdentifier: 1",
+                "overrideDefaultApplicationIdentifier: 0",
+            )
+            settings_path.write_text(content, encoding="utf-8")
+
+        # Fall back to default bundle ID
+        fallback = default_id or f"com.homecookedgames.{game_name.lower().replace(' ', '')}"
+        ios_id = ios_id or fallback
+        android_id = android_id or fallback
 
     return ios_id, android_id
 
@@ -310,7 +332,7 @@ def main():
     check_prerequisites()
 
     # Read bundle IDs
-    ios_bundle_id, android_bundle_id = read_bundle_ids()
+    ios_bundle_id, android_bundle_id = read_bundle_ids(game_name)
     print(f"iOS bundle ID: {ios_bundle_id}")
     print(f"Android bundle ID: {android_bundle_id}")
 
