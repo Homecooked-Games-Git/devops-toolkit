@@ -104,7 +104,7 @@ jobs:
           ARCH="arm64"
           if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
           echo "Ensuring iOS module is installed for Unity ${UNITY_VERSION}..."
-          "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module ios --architecture "${ARCH}"
+          yes | "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module ios --architecture "${ARCH}"
           echo "iOS module ready."
 
       - name: Auto-increment Build Number
@@ -205,7 +205,7 @@ jobs:
           ARCH="arm64"
           if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
           echo "Ensuring Android module is installed for Unity ${UNITY_VERSION}..."
-          "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module android --architecture "${ARCH}"
+          yes | "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module android --architecture "${ARCH}"
           echo "Android module ready."
 
       - name: Auto-increment Build Number
