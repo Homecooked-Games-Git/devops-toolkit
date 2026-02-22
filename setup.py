@@ -39,30 +39,19 @@ def check_prerequisites():
     """Ensure Firebase CLI is installed and user is logged in."""
     # Firebase CLI
     if not command_exists("firebase"):
-        if platform.system() == "Darwin":
-            if command_exists("brew"):
-                print("Installing Firebase CLI via Homebrew...")
-                run("brew install firebase-cli")
-            else:
-                print("Error: Homebrew not found. Install Firebase CLI manually:")
-                print("  https://firebase.google.com/docs/cli#install-cli-mac-linux")
-                sys.exit(1)
-        elif platform.system() == "Windows":
-            if command_exists("npm"):
-                print("Installing Firebase CLI via npm...")
-                run("npm install -g firebase-tools")
-            else:
-                print("Error: npm not found. Install Firebase CLI manually:")
-                print("  https://firebase.google.com/docs/cli#install-cli-windows")
-                sys.exit(1)
+        if command_exists("npm"):
+            print("Installing Firebase CLI via npm...")
+            run("npm install -g firebase-tools")
+        elif platform.system() == "Darwin" and command_exists("brew"):
+            print("Installing Firebase CLI via Homebrew...")
+            run("brew install firebase-cli")
+        elif platform.system() != "Windows":
+            print("Installing Firebase CLI via standalone installer...")
+            run("curl -sL https://firebase.tools | bash")
         else:
-            if command_exists("npm"):
-                print("Installing Firebase CLI via npm...")
-                run("npm install -g firebase-tools")
-            else:
-                print("Error: Install Firebase CLI manually:")
-                print("  https://firebase.google.com/docs/cli#install-cli-mac-linux")
-                sys.exit(1)
+            print("Error: Install Firebase CLI manually:")
+            print("  https://firebase.google.com/docs/cli")
+            sys.exit(1)
 
     # Firebase login check
     result = run("firebase projects:list", capture=True, check=False)
