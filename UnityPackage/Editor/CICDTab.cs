@@ -243,10 +243,10 @@ namespace HomecookedGames.DevOps.Editor
             WriteIfMissing(Path.Combine(root, "Gemfile"), Templates.Gemfile());
             WriteIfMissing(Path.Combine(root, ".gitignore"), Templates.GitIgnore());
 
-            // Generate Gemfile.lock
-            var lockPath = Path.Combine(root, "Gemfile.lock");
-            if (!File.Exists(lockPath))
-                _runner.Run("bundle lock", root);
+            // Copy Gemfile.lock template
+            var lockTemplatePath = Path.Combine(GetPackagePath(), "Templates~", "Gemfile.lock");
+            if (File.Exists(lockTemplatePath))
+                WriteIfMissing(Path.Combine(root, "Gemfile.lock"), File.ReadAllText(lockTemplatePath));
 
             _checker.Refresh();
             Debug.Log("CI/CD boilerplate generated.");

@@ -396,12 +396,18 @@ fastlane/report.xml
 
 
 def generate_gemfile_lock():
-    """Generate Gemfile.lock if bundler is available."""
-    if command_exists("bundle"):
-        print("Generating Gemfile.lock...")
+    """Copy Gemfile.lock template, or generate via bundler as fallback."""
+    # Try to copy template from devops-toolkit package
+    script_dir = Path(__file__).resolve().parent
+    template = script_dir / "UnityPackage" / "Editor" / "Templates~" / "Gemfile.lock"
+    if template.exists():
+        print("Copying Gemfile.lock template...")
+        write_file("Gemfile.lock", template.read_text())
+    elif command_exists("bundle"):
+        print("Generating Gemfile.lock via bundler...")
         run("bundle lock", check=False)
     else:
-        print("Warning: bundler not found. Run 'bundle lock' manually to generate Gemfile.lock.")
+        print("Warning: bundler not found and no template available. Run 'bundle lock' manually.")
 
 
 def main():
