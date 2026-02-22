@@ -83,13 +83,14 @@ jobs:
       - name: Ensure Unity Version Installed
         run: |
           UNITY_VERSION=$(sed -n 's/m_EditorVersion: //p' ProjectSettings/ProjectVersion.txt)
-          echo "Project requires Unity ${UNITY_VERSION}"
+          CHANGESET=$(sed -n 's/m_EditorVersionWithRevision: .* (\(.*\))/\1/p' ProjectSettings/ProjectVersion.txt)
+          echo "Project requires Unity ${UNITY_VERSION} (changeset: ${CHANGESET})"
           HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
             echo "Installing Unity ${UNITY_VERSION} with iOS module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --module ios
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module ios
             echo "Installation complete."
           fi
 
@@ -170,13 +171,14 @@ jobs:
       - name: Ensure Unity Version Installed
         run: |
           UNITY_VERSION=$(sed -n 's/m_EditorVersion: //p' ProjectSettings/ProjectVersion.txt)
-          echo "Project requires Unity ${UNITY_VERSION}"
+          CHANGESET=$(sed -n 's/m_EditorVersionWithRevision: .* (\(.*\))/\1/p' ProjectSettings/ProjectVersion.txt)
+          echo "Project requires Unity ${UNITY_VERSION} (changeset: ${CHANGESET})"
           HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
             echo "Installing Unity ${UNITY_VERSION} with Android module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --module android
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module android
             echo "Installation complete."
           fi
 
