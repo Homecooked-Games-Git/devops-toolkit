@@ -33,7 +33,7 @@ def run(cmd, capture=False, check=True):
 
 def _ensure_path():
     """Ensure Homebrew paths take priority (newer tools over system installs)."""
-    priority = ["/opt/homebrew/bin", "/opt/homebrew/sbin"]
+    priority = ["/opt/homebrew/opt/ruby/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin"]
     extra = ["/usr/local/bin", os.path.expanduser("~/.npm-global/bin")]
     current = os.environ.get("PATH", "")
     parts = current.split(os.pathsep)
