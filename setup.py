@@ -112,12 +112,17 @@ def read_bundle_ids():
     ios_id = None
     android_id = None
 
-    # Try regex first
-    m = re.search(r"applicationIdentifier:.*?iPhone:\s*([\w.]+)", content, re.DOTALL)
+    # Extract the applicationIdentifier block (indented lines after the key,
+    # stopping at the next top-level key). This prevents re.DOTALL from
+    # overshooting into buildNumber: where "iPhone: 0" is a build number.
+    block_m = re.search(r"applicationIdentifier:\n((?:[ \t]+.+\n)*)", content)
+    block = block_m.group(1) if block_m else ""
+
+    m = re.search(r"iPhone:\s*([\w.]+)", block)
     if m:
         ios_id = m.group(1).strip()
 
-    m = re.search(r"applicationIdentifier:.*?Android:\s*([\w.]+)", content, re.DOTALL)
+    m = re.search(r"Android:\s*([\w.]+)", block)
     if m:
         android_id = m.group(1).strip()
 
