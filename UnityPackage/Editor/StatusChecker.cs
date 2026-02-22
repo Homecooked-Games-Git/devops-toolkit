@@ -63,6 +63,7 @@ namespace HomecookedGames.DevOps.Editor
         public FastfileInfo Fastfile { get; private set; }
         public MatchfileInfo Matchfile { get; private set; }
         public GemfileInfo Gemfile { get; private set; }
+        public ComponentStatus GitIgnore { get; private set; }
 
         public StatusChecker()
         {
@@ -78,6 +79,7 @@ namespace HomecookedGames.DevOps.Editor
             RefreshFastfile();
             RefreshMatchfile();
             RefreshGemfile();
+            RefreshGitIgnore();
         }
 
         void RefreshProjectInfo()
@@ -181,6 +183,12 @@ namespace HomecookedGames.DevOps.Editor
                 Status = File.Exists(gemfilePath) ? ComponentStatus.Present : ComponentStatus.Missing,
                 HasLockFile = File.Exists(lockPath)
             };
+        }
+
+        void RefreshGitIgnore()
+        {
+            var path = Path.Combine(ProjectRoot, ".gitignore");
+            GitIgnore = File.Exists(path) ? ComponentStatus.Present : ComponentStatus.Missing;
         }
 
         static string ExtractPlistValue(string content, string key)

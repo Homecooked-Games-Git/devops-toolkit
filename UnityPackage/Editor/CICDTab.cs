@@ -104,6 +104,8 @@ namespace HomecookedGames.DevOps.Editor
             DrawStatusLine(gf.Status, "Gemfile",
                 gf.Status == ComponentStatus.Present ? (gf.HasLockFile ? "(lock: present)" : "(lock: missing)") : null);
 
+            DrawStatusLine(_checker.GitIgnore, ".gitignore");
+
             EditorGUI.indentLevel--;
             EditorGUILayout.Space(4);
 
@@ -116,6 +118,8 @@ namespace HomecookedGames.DevOps.Editor
                 GenerateBoilerplate();
             if (GUILayout.Button("Remove All", GUILayout.Width(100)))
                 RemoveBoilerplate();
+            if (GUILayout.Button("Update .gitignore", GUILayout.Width(120)))
+                UpdateGitIgnore();
 
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
@@ -237,9 +241,18 @@ namespace HomecookedGames.DevOps.Editor
             WriteIfMissing(Path.Combine(root, "fastlane", "Fastfile"), Templates.Fastfile());
             WriteIfMissing(Path.Combine(root, "fastlane", "Matchfile"), Templates.Matchfile());
             WriteIfMissing(Path.Combine(root, "Gemfile"), Templates.Gemfile());
+            WriteIfMissing(Path.Combine(root, ".gitignore"), Templates.GitIgnore());
 
             _checker.Refresh();
             Debug.Log("CI/CD boilerplate generated.");
+        }
+
+        void UpdateGitIgnore()
+        {
+            var path = Path.Combine(_checker.ProjectRoot, ".gitignore");
+            File.WriteAllText(path, Templates.GitIgnore());
+            _checker.Refresh();
+            Debug.Log(".gitignore updated.");
         }
 
         void RemoveBoilerplate()
