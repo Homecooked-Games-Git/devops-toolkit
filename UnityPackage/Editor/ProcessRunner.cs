@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -12,6 +13,8 @@ namespace HomecookedGames.DevOps.Editor
         public bool IsRunning { get; private set; }
         public string Output => _outputBuilder.ToString();
         public string Error => _errorBuilder.ToString();
+
+        static readonly string[] ExtraSearchPaths = { "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin" };
 
         readonly StringBuilder _outputBuilder = new();
         readonly StringBuilder _errorBuilder = new();
@@ -26,6 +29,26 @@ namespace HomecookedGames.DevOps.Editor
             _repaintCallback = repaint;
         }
 
+        /// <summary>Resolve a command name to its full path, checking extra directories Unity might miss.</summary>
+        static string ResolveCommand(string fileName)
+        {
+            // Already an absolute path
+            if (fileName.Contains("/") || fileName.Contains("\\"))
+                return fileName;
+
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+                return fileName;
+
+            foreach (var dir in ExtraSearchPaths)
+            {
+                var candidate = Path.Combine(dir, fileName);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+
+            return fileName;
+        }
+
         public void Run(string fileName, string arguments, string workingDirectory, Action onComplete = null)
         {
             if (IsRunning)
@@ -38,9 +61,11 @@ namespace HomecookedGames.DevOps.Editor
             _onComplete = onComplete;
             _outputBuilder.AppendLine($"> {fileName} {arguments}");
 
+            var resolvedFileName = ResolveCommand(fileName);
+
             var startInfo = new ProcessStartInfo
             {
-                FileName = fileName,
+                FileName = resolvedFileName,
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
                 UseShellExecute = false,
@@ -49,12 +74,11 @@ namespace HomecookedGames.DevOps.Editor
                 CreateNoWindow = true
             };
 
-            // Ensure Homebrew paths are available (Unity's PATH often misses them)
+            // Ensure child processes also see Homebrew paths
             if (Application.platform != RuntimePlatform.WindowsEditor)
             {
                 var path = startInfo.EnvironmentVariables["PATH"] ?? "";
-                var extraDirs = new[] { "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin" };
-                foreach (var dir in extraDirs)
+                foreach (var dir in ExtraSearchPaths)
                 {
                     if (!path.Contains(dir))
                         path = dir + ":" + path;
