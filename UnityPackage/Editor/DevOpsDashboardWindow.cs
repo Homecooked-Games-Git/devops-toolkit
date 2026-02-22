@@ -18,6 +18,7 @@ namespace HomecookedGames.DevOps.Editor
         StatusChecker _checker;
         ProcessRunner _runner;
         CICDTab _cicdTab;
+        BuildTab _buildTab;
         EssentialsTab _essentialsTab;
         Vector2 _scrollPos;
 
@@ -28,7 +29,7 @@ namespace HomecookedGames.DevOps.Editor
         bool _isUpdating;
         AddRequest _updateRequest;
 
-        static readonly string[] TabNames = { "CI/CD", "Essentials" };
+        static readonly string[] TabNames = { "CI/CD", "Build", "Essentials" };
 
         [MenuItem("HCTools/DevOps Dashboard")]
         static void ShowWindow()
@@ -47,6 +48,10 @@ namespace HomecookedGames.DevOps.Editor
 
             _cicdTab = new CICDTab(_checker, _runner);
             _cicdTab.OnEnable();
+
+            _buildTab = new BuildTab(_checker, _runner);
+            _buildTab.SetRepaintCallback(Repaint);
+            _buildTab.OnEnable();
 
             _essentialsTab = new EssentialsTab();
             _essentialsTab.SetRepaintCallback(Repaint);
@@ -96,6 +101,9 @@ namespace HomecookedGames.DevOps.Editor
                     _cicdTab.OnGUI();
                     break;
                 case 1:
+                    _buildTab.OnGUI();
+                    break;
+                case 2:
                     _essentialsTab.OnGUI();
                     break;
             }
