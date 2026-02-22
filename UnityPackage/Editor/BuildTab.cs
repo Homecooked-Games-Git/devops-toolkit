@@ -30,6 +30,7 @@ namespace HomecookedGames.DevOps.Editor
         int _buildTarget;
         int _distribution;
         string _scriptDefines = "";
+        bool _cleanBuild;
         bool _repoDetected;
 
         readonly List<RunInfo> _runs = new();
@@ -75,6 +76,7 @@ namespace HomecookedGames.DevOps.Editor
             _buildTarget = EditorGUILayout.Popup("Platform", _buildTarget, BuildTargets);
             _distribution = EditorGUILayout.Popup("Distribution", _distribution, Distributions);
             _scriptDefines = EditorGUILayout.TextField("Script Defines", _scriptDefines);
+            _cleanBuild = EditorGUILayout.Toggle("Clean Build", _cleanBuild);
 
             EditorGUI.indentLevel--;
             EditorGUILayout.Space(4);
@@ -174,7 +176,8 @@ namespace HomecookedGames.DevOps.Editor
         {
             var args = $"workflow run build.yml --repo \"{_repoSlug}\" --ref \"{_branch}\"" +
                        $" -f buildTarget={BuildTargets[_buildTarget]}" +
-                       $" -f distribution={Distributions[_distribution]}";
+                       $" -f distribution={Distributions[_distribution]}" +
+                       $" -f cleanBuild={(_cleanBuild ? "true" : "false")}";
 
             if (!string.IsNullOrEmpty(_scriptDefines))
                 args += $" -f scriptDefines=\"{_scriptDefines}\"";

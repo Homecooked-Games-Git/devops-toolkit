@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: """"
+      cleanBuild:
+        description: ""Delete Library cache before building""
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
@@ -46,6 +51,7 @@ jobs:
       build_target: ""iOS""
       distribution: ${{{{ inputs.distribution }}}}
       script_defines: ${{{{ inputs.scriptDefines }}}}
+      clean_build: ${{{{ inputs.cleanBuild }}}}
     secrets: inherit
 
   build-android:
@@ -58,6 +64,7 @@ jobs:
       build_target: ""Android""
       distribution: ${{{{ inputs.distribution }}}}
       script_defines: ${{{{ inputs.scriptDefines }}}}
+      clean_build: ${{{{ inputs.cleanBuild }}}}
     secrets: inherit
 ";
 

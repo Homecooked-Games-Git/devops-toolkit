@@ -40,6 +40,11 @@ on:
         required: false
         type: string
         default: ""
+      clean_build:
+        description: "Delete Library cache before building"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   # ── iOS ──────────────────────────────────────────────
@@ -67,7 +72,13 @@ jobs:
           fetch-depth: 0
 
       - name: Clean Workspace Artifacts
-        run: git clean -fdx --exclude=Library
+        run: |
+          if [ "${{ inputs.clean_build }}" = "true" ]; then
+            echo "Clean build: removing Library cache"
+            git clean -fdx
+          else
+            git clean -fdx --exclude=Library
+          fi
 
       - name: Ensure Unity Version Installed
         run: |
@@ -148,7 +159,13 @@ jobs:
           fetch-depth: 0
 
       - name: Clean Workspace Artifacts
-        run: git clean -fdx --exclude=Library
+        run: |
+          if [ "${{ inputs.clean_build }}" = "true" ]; then
+            echo "Clean build: removing Library cache"
+            git clean -fdx
+          else
+            git clean -fdx --exclude=Library
+          fi
 
       - name: Ensure Unity Version Installed
         run: |
