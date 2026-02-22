@@ -80,21 +80,32 @@ jobs:
             git clean -fdx --exclude=Library
           fi
 
-      - name: Ensure Unity Version Installed
+      - name: Ensure Unity Editor Installed
         run: |
           UNITY_VERSION=$(sed -n 's/m_EditorVersion: //p' ProjectSettings/ProjectVersion.txt)
           CHANGESET=$(sed -n 's/m_EditorVersionWithRevision: .* (\(.*\))/\1/p' ProjectSettings/ProjectVersion.txt)
           echo "Project requires Unity ${UNITY_VERSION} (changeset: ${CHANGESET})"
+          echo "UNITY_VERSION=${UNITY_VERSION}" >> "$GITHUB_ENV"
+          echo "CHANGESET=${CHANGESET}" >> "$GITHUB_ENV"
           HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
             ARCH="arm64"
             if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
-            echo "Installing Unity ${UNITY_VERSION} (${ARCH}) with iOS module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module ios --architecture "${ARCH}"
-            echo "Installation complete."
+            echo "Installing Unity ${UNITY_VERSION} (${ARCH})..."
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --architecture "${ARCH}"
+            echo "Editor installation complete."
           fi
+
+      - name: Ensure iOS Module Installed
+        run: |
+          HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
+          ARCH="arm64"
+          if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
+          echo "Ensuring iOS module is installed for Unity ${UNITY_VERSION}..."
+          "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module ios --architecture "${ARCH}"
+          echo "iOS module ready."
 
       - name: Auto-increment Build Number
         run: |
@@ -170,21 +181,32 @@ jobs:
             git clean -fdx --exclude=Library
           fi
 
-      - name: Ensure Unity Version Installed
+      - name: Ensure Unity Editor Installed
         run: |
           UNITY_VERSION=$(sed -n 's/m_EditorVersion: //p' ProjectSettings/ProjectVersion.txt)
           CHANGESET=$(sed -n 's/m_EditorVersionWithRevision: .* (\(.*\))/\1/p' ProjectSettings/ProjectVersion.txt)
           echo "Project requires Unity ${UNITY_VERSION} (changeset: ${CHANGESET})"
+          echo "UNITY_VERSION=${UNITY_VERSION}" >> "$GITHUB_ENV"
+          echo "CHANGESET=${CHANGESET}" >> "$GITHUB_ENV"
           HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
             ARCH="arm64"
             if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
-            echo "Installing Unity ${UNITY_VERSION} (${ARCH}) with Android module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module android --architecture "${ARCH}"
-            echo "Installation complete."
+            echo "Installing Unity ${UNITY_VERSION} (${ARCH})..."
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --architecture "${ARCH}"
+            echo "Editor installation complete."
           fi
+
+      - name: Ensure Android Module Installed
+        run: |
+          HUB="/Applications/Unity Hub.app/Contents/MacOS/Unity Hub"
+          ARCH="arm64"
+          if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
+          echo "Ensuring Android module is installed for Unity ${UNITY_VERSION}..."
+          "$HUB" -- --headless install-modules --version "${UNITY_VERSION}" --module android --architecture "${ARCH}"
+          echo "Android module ready."
 
       - name: Auto-increment Build Number
         run: |
