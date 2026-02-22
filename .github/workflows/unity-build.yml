@@ -34,6 +34,11 @@ on:
         required: false
         type: boolean
         default: false
+      script_defines:
+        description: "Extra scripting define symbols to append (semicolon-separated, e.g. DEV_MODE;EXTRA_LOGGING)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   # ── iOS ──────────────────────────────────────────────
@@ -68,6 +73,13 @@ jobs:
           BUILD_NUMBER=$(( CURRENT + ${{ github.run_number }} ))
           sed -i '' -E "s/(buildNumber:.*iPhone: )[0-9]+/\1${BUILD_NUMBER}/" ProjectSettings/ProjectSettings.asset
           echo "Build number: ${CURRENT} + ${{ github.run_number }} = ${BUILD_NUMBER}"
+
+      - name: Append Script Defines
+        if: inputs.script_defines != ''
+        run: |
+          DEFINES="${{ inputs.script_defines }}"
+          sed -i '' -E "s/(    iPhone: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
+          echo "Appended script defines: ${DEFINES}"
 
       - name: Build Xcode Project via GameCI
         uses: game-ci/unity-builder@v4
@@ -121,6 +133,13 @@ jobs:
           BUILD_NUMBER=$(( CURRENT + ${{ github.run_number }} ))
           sed -i '' -E "s/(AndroidBundleVersionCode: )[0-9]+/\1${BUILD_NUMBER}/" ProjectSettings/ProjectSettings.asset
           echo "Build number: ${CURRENT} + ${{ github.run_number }} = ${BUILD_NUMBER}"
+
+      - name: Append Script Defines
+        if: inputs.script_defines != ''
+        run: |
+          DEFINES="${{ inputs.script_defines }}"
+          sed -i '' -E "s/(    Android: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
+          echo "Appended script defines: ${DEFINES}"
 
       - name: Build Android via GameCI
         uses: game-ci/unity-builder@v4
