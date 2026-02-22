@@ -89,7 +89,6 @@ jobs:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: iOS
-          skipActivation: true
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
 
@@ -162,7 +161,6 @@ jobs:
           ANDROID_KEYALIAS_PASS: ${{ secrets.ANDROID_KEYALIAS_PASS }}
         with:
           targetPlatform: Android
-          skipActivation: true
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
           androidAppBundle: ${{ inputs.android_app_bundle }}
