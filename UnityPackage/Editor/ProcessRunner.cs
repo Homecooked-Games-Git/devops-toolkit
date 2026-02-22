@@ -49,6 +49,19 @@ namespace HomecookedGames.DevOps.Editor
                 CreateNoWindow = true
             };
 
+            // Ensure Homebrew paths are available (Unity's PATH often misses them)
+            if (Application.platform != RuntimePlatform.WindowsEditor)
+            {
+                var path = startInfo.EnvironmentVariables["PATH"] ?? "";
+                var extraDirs = new[] { "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin" };
+                foreach (var dir in extraDirs)
+                {
+                    if (!path.Contains(dir))
+                        path = dir + ":" + path;
+                }
+                startInfo.EnvironmentVariables["PATH"] = path;
+            }
+
             // On Windows, .cmd files need shell execution workaround
             if (Application.platform == RuntimePlatform.WindowsEditor && fileName == "firebase")
             {
