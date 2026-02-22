@@ -31,6 +31,18 @@ def run(cmd, capture=False, check=True):
         subprocess.run(cmd, shell=True, check=check)
 
 
+def _ensure_path():
+    """Add common tool directories to PATH so shutil.which can find them."""
+    extra = ["/opt/homebrew/bin", "/usr/local/bin", os.path.expanduser("~/.npm-global/bin")]
+    current = os.environ.get("PATH", "")
+    for p in extra:
+        if p not in current:
+            current = p + os.pathsep + current
+    os.environ["PATH"] = current
+
+_ensure_path()
+
+
 def command_exists(name):
     return shutil.which(name) is not None
 
@@ -45,11 +57,9 @@ def check_prerequisites():
         elif platform.system() == "Darwin" and command_exists("brew"):
             print("Installing Firebase CLI via Homebrew...")
             run("brew install firebase-cli")
-        elif platform.system() != "Windows":
-            print("Installing Firebase CLI via standalone installer...")
-            run("curl -sL https://firebase.tools | bash")
         else:
             print("Error: Install Firebase CLI manually:")
+            print("  npm install -g firebase-tools")
             print("  https://firebase.google.com/docs/cli")
             sys.exit(1)
 
