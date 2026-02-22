@@ -254,40 +254,64 @@ namespace HomecookedGames.DevOps.Editor
 
         const string CIServiceAccount = "ci-distribution@hcgamesfirebase.iam.gserviceaccount.com";
 
+        void EnsureGcloud(Action onReady)
+        {
+            if (File.Exists(ProcessRunner.ResolveCommand("gcloud")))
+            {
+                onReady();
+                return;
+            }
+
+            _runner.ClearOutput();
+            _runner.Run("brew", "install google-cloud-sdk",
+                _checker.ProjectRoot, () =>
+                {
+                    if (File.Exists(ProcessRunner.ResolveCommand("gcloud")))
+                        onReady();
+                    else
+                        Debug.LogError("Failed to install gcloud. Install manually: brew install google-cloud-sdk");
+                });
+        }
+
         void CheckServiceAccount()
         {
             var projectId = GetFirebaseProjectId();
             if (string.IsNullOrEmpty(projectId))
                 projectId = ToFirebaseProjectId(_gameName);
 
-            _runner.ClearOutput();
-            _runner.Run("gcloud",
-                $"projects get-iam-policy {projectId} --flatten=\"bindings[].members\" " +
-                $"--filter=\"bindings.members:serviceAccount:{CIServiceAccount}\" " +
-                $"--format=\"value(bindings.role)\"",
-                _checker.ProjectRoot, () =>
-                {
-                    var output = _runner.Output;
-                    _checker.ServiceAccount = new ServiceAccountInfo
+            var pid = projectId;
+            EnsureGcloud(() =>
+            {
+                _runner.Run("gcloud",
+                    $"projects get-iam-policy {pid} --flatten=\"bindings[].members\" " +
+                    $"--filter=\"bindings.members:serviceAccount:{CIServiceAccount}\" " +
+                    $"--format=\"value(bindings.role)\"",
+                    _checker.ProjectRoot, () =>
                     {
-                        Status = output.Contains("firebaseappdistro") ? ComponentStatus.Present : ComponentStatus.Missing,
-                        ProjectId = projectId,
-                        Checked = true
-                    };
-                });
+                        var output = _runner.Output;
+                        _checker.ServiceAccount = new ServiceAccountInfo
+                        {
+                            Status = output.Contains("firebaseappdistro") ? ComponentStatus.Present : ComponentStatus.Missing,
+                            ProjectId = pid,
+                            Checked = true
+                        };
+                    });
+            });
         }
 
         void AddServiceAccount(string projectId)
         {
-            _runner.ClearOutput();
-            _runner.Run("gcloud",
-                $"projects add-iam-policy-binding {projectId} " +
-                $"--member=\"serviceAccount:{CIServiceAccount}\" " +
-                $"--role=\"roles/firebaseappdistro.admin\" --quiet",
-                _checker.ProjectRoot, () =>
-                {
-                    CheckServiceAccount();
-                });
+            EnsureGcloud(() =>
+            {
+                _runner.Run("gcloud",
+                    $"projects add-iam-policy-binding {projectId} " +
+                    $"--member=\"serviceAccount:{CIServiceAccount}\" " +
+                    $"--role=\"roles/firebaseappdistro.admin\" --quiet",
+                    _checker.ProjectRoot, () =>
+                    {
+                        CheckServiceAccount();
+                    });
+            });
         }
 
         void OpenFirebaseConsole()

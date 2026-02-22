@@ -30,7 +30,7 @@ namespace HomecookedGames.DevOps.Editor
         }
 
         /// <summary>Resolve a command name to its full path, checking extra directories Unity might miss.</summary>
-        static string ResolveCommand(string fileName)
+        public static string ResolveCommand(string fileName)
         {
             // Already an absolute path
             if (fileName.Contains("/") || fileName.Contains("\\"))
