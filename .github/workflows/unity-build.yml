@@ -12,14 +12,15 @@ on:
         required: false
         type: string
         default: "iOS"
+      distribution:
+        description: "Distribution target: None, TestFlight, Firebase"
+        required: false
+        type: string
+        default: "None"
       xcode_project_dir:
         required: false
         type: string
         default: "build/iOS/iOS"
-      fastlane_lane:
-        required: false
-        type: string
-        default: "ios beta"
       devops_toolkit_ref:
         description: "Git ref of devops-toolkit for import_from_git"
         required: false
@@ -30,7 +31,7 @@ on:
         type: string
         default: "None"
       android_app_bundle:
-        description: "Build AAB instead of APK (for Play Store)"
+        description: "Build AAB instead of APK"
         required: false
         type: boolean
         default: false
@@ -55,6 +56,7 @@ jobs:
       APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
       APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
 
     steps:
       - name: Checkout Repository
@@ -92,10 +94,17 @@ jobs:
           versioning: ${{ inputs.unity_versioning }}
 
       - name: Install Ruby Dependencies
+        if: inputs.distribution != 'None'
         run: bundle install
 
       - name: Run Fastlane
-        run: bundle exec fastlane ${{ inputs.fastlane_lane }}
+        if: inputs.distribution != 'None'
+        run: |
+          case "${{ inputs.distribution }}" in
+            TestFlight) LANE="ios beta" ;;
+            Firebase)   LANE="ios firebase" ;;
+          esac
+          bundle exec fastlane ${LANE}
         env:
           FL_GAME_NAME: ${{ inputs.game_name }}
           FL_XCODE_PROJECT_DIR: ${{ inputs.xcode_project_dir }}
@@ -115,6 +124,7 @@ jobs:
 
     env:
       PATH: /opt/homebrew/opt/ruby/bin:/opt/homebrew/lib/ruby/gems/4.0.0/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
 
     steps:
       - name: Checkout Repository
@@ -156,6 +166,17 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
           androidAppBundle: ${{ inputs.android_app_bundle }}
+
+      - name: Install Ruby Dependencies
+        if: inputs.distribution == 'Firebase'
+        run: bundle install
+
+      - name: Run Fastlane
+        if: inputs.distribution == 'Firebase'
+        run: bundle exec fastlane android firebase
+        env:
+          FL_GAME_NAME: ${{ inputs.game_name }}
+          FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4

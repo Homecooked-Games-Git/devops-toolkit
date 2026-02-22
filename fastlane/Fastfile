@@ -1,8 +1,8 @@
-# Shared Fastfile for Homecooked Games Unity iOS builds
+# Shared Fastfile for Homecooked Games Unity builds
 #
 # Imported by game repos via:
 #   import_from_git(url: "https://github.com/Homecooked-Games-Git/devops-toolkit.git",
-#                   branch: "v1", path: "fastlane/Fastfile")
+#                   branch: "main", path: "fastlane/Fastfile")
 #
 # app_identifier is read automatically from ProjectSettings/ProjectSettings.asset
 #
@@ -10,21 +10,48 @@
 #   FL_GAME_NAME           - used for IPA filename
 #   FL_XCODE_PROJECT_DIR   - path to Unity's Xcode export (default: "build/iOS/iOS")
 
+require "json"
+
 default_platform(:ios)
 
 TEAM_ID = "X3DPX6VLNN"
 
-# Read iOS bundle identifier from Unity ProjectSettings.
+# Read bundle identifier from Unity ProjectSettings.
 # GITHUB_WORKSPACE anchors the path when imported via import_from_git
 # (which runs from a temp clone directory).
-def resolve_app_identifier
+def resolve_app_identifier(platform_key = "iPhone")
   root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
   path = File.join(root, "ProjectSettings", "ProjectSettings.asset")
   settings = File.read(path)
-  m = settings.match(/applicationIdentifier:.*?iPhone:\s*([\w.]+)/m)
-  UI.user_error!("No iPhone app identifier found in #{path}") unless m
+  m = settings.match(/applicationIdentifier:.*?#{platform_key}:\s*([\w.]+)/m)
+  UI.user_error!("No #{platform_key} app identifier found in #{path}") unless m
   m[1].strip
 end
+
+def resolve_firebase_app_id(platform)
+  root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
+  if platform == :android
+    path = File.join(root, "Assets", "Settings", "google-services.json")
+    json = JSON.parse(File.read(path))
+    json["client"][0]["client_info"]["mobilesdk_app_id"]
+  else
+    path = File.join(root, "Assets", "Settings", "GoogleService-Info.plist")
+    content = File.read(path)
+    m = content.match(/<key>GOOGLE_APP_ID<\/key>\s*<string>([^<]+)<\/string>/)
+    UI.user_error!("No GOOGLE_APP_ID found in #{path}") unless m
+    m[1]
+  end
+end
+
+def find_android_artifact
+  root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
+  build_dir = File.join(root, "build", "Android")
+  aab = Dir.glob(File.join(build_dir, "**", "*.aab")).first
+  apk = Dir.glob(File.join(build_dir, "**", "*.apk")).first
+  aab || apk || UI.user_error!("No AAB or APK found in #{build_dir}")
+end
+
+# ── iOS ──
 
 platform :ios do
 
@@ -111,6 +138,32 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build and upload to Firebase App Distribution"
+  lane :firebase do
+    build
+
+    firebase_app_distribution(
+      app: resolve_firebase_app_id(:ios),
+      service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
+      ipa_path: lane_context[SharedValues::IPA_OUTPUT_PATH]
+    )
+  end
+
+end
+
+# ── Android ──
+
+platform :android do
+
+  desc "Upload to Firebase App Distribution"
+  lane :firebase do
+    firebase_app_distribution(
+      app: resolve_firebase_app_id(:android),
+      service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
+      android_artifact_path: find_android_artifact
     )
   end
 
