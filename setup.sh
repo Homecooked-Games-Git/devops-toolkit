@@ -85,7 +85,7 @@ EOF
 
 # fastlane/Matchfile
 cat > fastlane/Matchfile << 'EOF'
-git_url("https://github.com/oguztecimer/luckyrpg-certificates.git")
+git_url("https://github.com/oguztecimer/ios-certificates.git")
 storage_mode("git")
 type("appstore")
 EOF
