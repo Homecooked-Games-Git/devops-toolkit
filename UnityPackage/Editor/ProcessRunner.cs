@@ -74,16 +74,27 @@ namespace HomecookedGames.DevOps.Editor
                 CreateNoWindow = true
             };
 
-            // Ensure child processes also see Homebrew paths
+            // Ensure child processes see Homebrew paths first.
+            // IMPORTANT: Use Environment (not EnvironmentVariables) — the older
+            // StringDictionary lowercases keys, turning "PATH" into "path" which
+            // Unix ignores. This broke #!/usr/bin/env shebangs (e.g. firebase's
+            // #!/usr/bin/env node would find the wrong Node.js version).
             if (Application.platform != RuntimePlatform.WindowsEditor)
             {
-                var path = startInfo.EnvironmentVariables["PATH"] ?? "";
-                foreach (var dir in ExtraSearchPaths)
+                var env = startInfo.Environment;
+                if (!env.TryGetValue("PATH", out var path))
+                    path = "";
+
+                // Only prepend Homebrew dirs — /usr/local/bin is kept for
+                // ResolveCommand() fallback but should NOT take priority.
+                var priority = new[] { "/opt/homebrew/bin", "/opt/homebrew/sbin" };
+                for (var i = priority.Length - 1; i >= 0; i--)
                 {
-                    if (!path.Contains(dir))
-                        path = dir + ":" + path;
+                    if (!path.Contains(priority[i]))
+                        path = priority[i] + ":" + path;
                 }
-                startInfo.EnvironmentVariables["PATH"] = path;
+
+                env["PATH"] = path;
             }
 
             // On Windows, .cmd files need shell execution workaround
