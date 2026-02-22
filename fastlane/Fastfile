@@ -23,7 +23,7 @@ def resolve_app_identifier(platform_key = "iPhone")
   root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
   path = File.join(root, "ProjectSettings", "ProjectSettings.asset")
   settings = File.read(path)
-  m = settings.match(/applicationIdentifier:.*?#{platform_key}:\s*([\w.]+)/m)
+  m = settings.match(/applicationIdentifier:.*?#{platform_key}:\s*([\w.\-]+)/m)
   UI.user_error!("No #{platform_key} app identifier found in #{path}") unless m
   m[1].strip
 end
@@ -81,17 +81,34 @@ platform :ios do
   desc "Build iOS IPA from Unity Xcode export"
   lane :build do |options|
     sign_type = options[:sign_type] || "appstore"
+    root        = ENV["GITHUB_WORKSPACE"] || Dir.pwd
     app_id      = resolve_app_identifier
-    xcode_dir   = ENV["FL_XCODE_PROJECT_DIR"] || "build/iOS/iOS"
+    xcode_dir   = File.join(root, ENV["FL_XCODE_PROJECT_DIR"] || "build/iOS/iOS")
     game_name   = ENV.fetch("FL_GAME_NAME")
 
-    cocoapods(
-      podfile: "#{xcode_dir}/Podfile",
-      try_repo_update_on_error: true
-    )
+    if File.exist?("#{xcode_dir}/Podfile")
+      cocoapods(
+        podfile: "#{xcode_dir}/Podfile",
+        try_repo_update_on_error: true
+      )
+    end
 
     api_key = setup_api_key
     keychain_password = setup_keychain
+
+    # Ensure the App ID (bundle identifier) is registered in the Developer Portal
+    existing = Spaceship::ConnectAPI::BundleId.find(app_id)
+    if existing
+      UI.message("App ID '#{app_id}' already registered")
+    else
+      UI.important("App ID '#{app_id}' not found, creating...")
+      Spaceship::ConnectAPI::BundleId.create(
+        name: game_name,
+        identifier: app_id,
+        platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS
+      )
+      UI.success("Created App ID '#{app_id}'")
+    end
 
     match(
       type: sign_type,
@@ -121,8 +138,10 @@ platform :ios do
       targets: ["Unity-iPhone"]
     )
 
-    build_app(
-      workspace: "#{xcode_dir}/Unity-iPhone.xcworkspace",
+    workspace_path = "#{xcode_dir}/Unity-iPhone.xcworkspace"
+    project_path   = "#{xcode_dir}/Unity-iPhone.xcodeproj"
+
+    build_opts = {
       scheme: "Unity-iPhone",
       export_method: export_method,
       output_directory: "#{xcode_dir}/output",
@@ -134,7 +153,15 @@ platform :ios do
           app_id => profile_name
         }
       }
-    )
+    }
+
+    if File.exist?(workspace_path)
+      build_opts[:workspace] = workspace_path
+    else
+      build_opts[:project] = project_path
+    end
+
+    build_app(build_opts)
   end
 
   desc "Build and upload to TestFlight"
@@ -151,22 +178,28 @@ platform :ios do
 
   desc "Build and upload to Firebase App Distribution"
   lane :firebase do
+    root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
     app_id = resolve_app_identifier
     firebase_app_id = resolve_firebase_app_id(:ios)
+    udid_file = File.join(root, "firebase_udids.csv")
 
     # Fetch tester UDIDs from Firebase and register with Apple
     firebase_app_distribution_get_udids(
       app: firebase_app_id,
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
-      output_file: "firebase_udids.csv"
+      output_file: udid_file
     )
 
     api_key = setup_api_key
 
-    register_devices(
-      devices_file: "firebase_udids.csv",
-      api_key: api_key
-    )
+    if File.exist?(udid_file)
+      register_devices(
+        devices_file: udid_file,
+        api_key: api_key
+      )
+    else
+      UI.important("No tester UDIDs found — skipping device registration")
+    end
 
     # Build with ad-hoc signing (auto-regenerates profile for new devices)
     build(sign_type: "adhoc")

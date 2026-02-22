@@ -237,13 +237,19 @@ namespace HomecookedGames.DevOps.Editor
             var settingsDir = Path.Combine(_checker.ProjectRoot, "Assets", "Settings");
             Directory.CreateDirectory(settingsDir);
 
+            // Delete existing configs so firebase CLI doesn't skip the download
+            var iosConfig = Path.Combine(settingsDir, "GoogleService-Info.plist");
+            var androidConfig = Path.Combine(settingsDir, "google-services.json");
+            if (File.Exists(iosConfig)) File.Delete(iosConfig);
+            if (File.Exists(androidConfig)) File.Delete(androidConfig);
+
             _runner.ClearOutput();
             _runner.Run(ProcessRunner.FirebaseCommand,
-                $"apps:sdkconfig ios --project \"{projectId}\" --out \"{Path.Combine(settingsDir, "GoogleService-Info.plist")}\"",
+                $"apps:sdkconfig ios --project \"{projectId}\" --out \"{iosConfig}\"",
                 _checker.ProjectRoot, () =>
                 {
                     _runner.Run(ProcessRunner.FirebaseCommand,
-                        $"apps:sdkconfig android --project \"{projectId}\" --out \"{Path.Combine(settingsDir, "google-services.json")}\"",
+                        $"apps:sdkconfig android --project \"{projectId}\" --out \"{androidConfig}\"",
                         _checker.ProjectRoot, () =>
                         {
                             AssetDatabase.Refresh();
