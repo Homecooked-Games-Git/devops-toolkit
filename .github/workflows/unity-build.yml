@@ -89,8 +89,10 @@ jobs:
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
-            echo "Installing Unity ${UNITY_VERSION} with iOS module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module ios
+            ARCH="arm64"
+            if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
+            echo "Installing Unity ${UNITY_VERSION} (${ARCH}) with iOS module..."
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module ios --architecture "${ARCH}"
             echo "Installation complete."
           fi
 
@@ -177,8 +179,10 @@ jobs:
           if "$HUB" -- --headless editors --installed 2>/dev/null | grep -q "${UNITY_VERSION}"; then
             echo "Unity ${UNITY_VERSION} is already installed."
           else
-            echo "Installing Unity ${UNITY_VERSION} with Android module..."
-            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module android
+            ARCH="arm64"
+            if [ "$(uname -m)" = "x86_64" ]; then ARCH="x86_64"; fi
+            echo "Installing Unity ${UNITY_VERSION} (${ARCH}) with Android module..."
+            "$HUB" -- --headless install --version "${UNITY_VERSION}" --changeset "${CHANGESET}" --module android --architecture "${ARCH}"
             echo "Installation complete."
           fi
 
