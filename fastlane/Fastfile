@@ -64,10 +64,7 @@ platform :ios do
     )
   end
 
-  desc "Sync code signing certificates and profiles via match"
-  lane :sync_signing do
-    api_key = setup_api_key
-
+  private_lane :setup_keychain do
     keychain_password = ENV["MATCH_KEYCHAIN_PASSWORD"] || ""
 
     create_keychain(
@@ -78,18 +75,12 @@ platform :ios do
       timeout: 3600
     )
 
-    match(
-      type: "appstore",
-      app_identifier: resolve_app_identifier,
-      api_key: api_key,
-      readonly: true,
-      keychain_name: "fastlane_keychain",
-      keychain_password: keychain_password
-    )
+    keychain_password
   end
 
   desc "Build iOS IPA from Unity Xcode export"
-  lane :build do
+  lane :build do |options|
+    sign_type = options[:sign_type] || "appstore"
     app_id      = resolve_app_identifier
     xcode_dir   = ENV["FL_XCODE_PROJECT_DIR"] || "build/iOS/iOS"
     game_name   = ENV.fetch("FL_GAME_NAME")
@@ -99,9 +90,26 @@ platform :ios do
       try_repo_update_on_error: true
     )
 
-    sync_signing
+    api_key = setup_api_key
+    keychain_password = setup_keychain
 
-    profile_name = "match AppStore #{app_id}"
+    match(
+      type: sign_type,
+      app_identifier: app_id,
+      api_key: api_key,
+      readonly: sign_type == "appstore",
+      force_for_new_devices: sign_type == "adhoc",
+      keychain_name: "fastlane_keychain",
+      keychain_password: keychain_password
+    )
+
+    if sign_type == "appstore"
+      profile_name = "match AppStore #{app_id}"
+      export_method = "app-store"
+    else
+      profile_name = "match AdHoc #{app_id}"
+      export_method = "ad-hoc"
+    end
 
     update_code_signing_settings(
       use_automatic_signing: false,
@@ -116,7 +124,7 @@ platform :ios do
     build_app(
       workspace: "#{xcode_dir}/Unity-iPhone.xcworkspace",
       scheme: "Unity-iPhone",
-      export_method: "app-store",
+      export_method: export_method,
       output_directory: "#{xcode_dir}/output",
       output_name: "#{game_name}.ipa",
       clean: true,
@@ -131,7 +139,7 @@ platform :ios do
 
   desc "Build and upload to TestFlight"
   lane :beta do
-    build
+    build(sign_type: "appstore")
 
     api_key = setup_api_key
 
@@ -143,10 +151,28 @@ platform :ios do
 
   desc "Build and upload to Firebase App Distribution"
   lane :firebase do
-    build
+    app_id = resolve_app_identifier
+    firebase_app_id = resolve_firebase_app_id(:ios)
+
+    # Fetch tester UDIDs from Firebase and register with Apple
+    firebase_app_distribution_get_udids(
+      app: firebase_app_id,
+      service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
+      output_file: "firebase_udids.csv"
+    )
+
+    api_key = setup_api_key
+
+    register_devices(
+      devices_file: "firebase_udids.csv",
+      api_key: api_key
+    )
+
+    # Build with ad-hoc signing (auto-regenerates profile for new devices)
+    build(sign_type: "adhoc")
 
     firebase_app_distribution(
-      app: resolve_firebase_app_id(:ios),
+      app: firebase_app_id,
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
       ipa_path: lane_context[SharedValues::IPA_OUTPUT_PATH]
     )
