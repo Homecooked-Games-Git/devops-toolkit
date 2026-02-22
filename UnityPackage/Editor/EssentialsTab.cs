@@ -7,7 +7,6 @@ using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
-using UnityEngine.Networking;
 using Debug = UnityEngine.Debug;
 
 namespace HomecookedGames.DevOps.Editor
@@ -15,7 +14,6 @@ namespace HomecookedGames.DevOps.Editor
     public class EssentialsTab
     {
         const string PluginsRepoSsh = "git@github.com:Homecooked-Games-Git/unity-plugins.git";
-        const string RawRepoBase = "https://raw.githubusercontent.com/Homecooked-Games-Git/unity-plugins/main";
 
         struct PluginInfo
         {
@@ -27,7 +25,6 @@ namespace HomecookedGames.DevOps.Editor
             public bool IsPrivateRepo => CustomGitUrl == null;
 
             public string GitUrl => CustomGitUrl ?? $"{PluginsRepoSsh}?path=/{SubPath}#main";
-            public string RemotePackageJsonUrl => $"{RawRepoBase}/{SubPath}/package.json";
         }
 
         static readonly PluginInfo[] Plugins =
@@ -63,7 +60,8 @@ namespace HomecookedGames.DevOps.Editor
         RemoveRequest _removeRequest;
         string _pendingAction;
         bool _isCheckingUpdates;
-        readonly List<UnityWebRequestAsyncOperation> _versionChecks = new();
+        Process _updateCheckProcess;
+        string _updateCheckTmpDir;
 
         // SSH auth state
         bool _sshChecked;
@@ -343,49 +341,90 @@ namespace HomecookedGames.DevOps.Editor
 
         void CheckForUpdates()
         {
+            if (!_sshAvailable)
+            {
+                Debug.LogWarning("Cannot check for updates: SSH access not available.");
+                return;
+            }
+
             _isCheckingUpdates = true;
-            _versionChecks.Clear();
             _remoteVersions.Clear();
 
-            foreach (var plugin in Plugins)
-            {
-                if (string.IsNullOrEmpty(plugin.SubPath)) continue;
+            // Shallow clone the private repo to a temp dir, then read package.json files
+            _updateCheckTmpDir = Path.Combine(Path.GetTempPath(), "hc-plugin-update-check");
+            if (Directory.Exists(_updateCheckTmpDir))
+                Directory.Delete(_updateCheckTmpDir, true);
 
-                var url = plugin.RemotePackageJsonUrl;
-                var request = UnityWebRequest.Get(url);
-                var op = request.SendWebRequest();
-                var packageName = plugin.PackageName;
-                op.completed += _ =>
+            _updateCheckProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
                 {
-                    if (request.result == UnityWebRequest.Result.Success)
+                    FileName = "git",
+                    Arguments = $"clone --depth 1 {PluginsRepoSsh} \"{_updateCheckTmpDir}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+
+            try
+            {
+                _updateCheckProcess.Start();
+                _updateCheckProcess.BeginOutputReadLine();
+                _updateCheckProcess.BeginErrorReadLine();
+                EditorApplication.update += PollUpdateCheck;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to check for updates: {ex.Message}");
+                _isCheckingUpdates = false;
+            }
+        }
+
+        void PollUpdateCheck()
+        {
+            if (_updateCheckProcess == null || !_updateCheckProcess.HasExited) return;
+
+            EditorApplication.update -= PollUpdateCheck;
+            var success = _updateCheckProcess.ExitCode == 0;
+            _updateCheckProcess.Dispose();
+            _updateCheckProcess = null;
+
+            if (success && Directory.Exists(_updateCheckTmpDir))
+            {
+                // Read package.json from each plugin subfolder
+                foreach (var plugin in Plugins)
+                {
+                    if (string.IsNullOrEmpty(plugin.SubPath))
                     {
-                        var version = ExtractVersionFromJson(request.downloadHandler.text);
-                        _remoteVersions[packageName] = new RemoteInfo { Fetched = true, Version = version };
+                        _remoteVersions[plugin.PackageName] = new RemoteInfo { Fetched = true, Version = null };
+                        continue;
+                    }
+
+                    var pkgJsonPath = Path.Combine(_updateCheckTmpDir, plugin.SubPath, "package.json");
+                    if (File.Exists(pkgJsonPath))
+                    {
+                        var json = File.ReadAllText(pkgJsonPath);
+                        var version = ExtractVersionFromJson(json);
+                        _remoteVersions[plugin.PackageName] = new RemoteInfo { Fetched = true, Version = version };
                     }
                     else
                     {
-                        _remoteVersions[packageName] = new RemoteInfo { Fetched = true, Version = null };
+                        _remoteVersions[plugin.PackageName] = new RemoteInfo { Fetched = true, Version = null };
                     }
+                }
 
-                    request.Dispose();
-                    CheckUpdatesDone();
-                };
-                _versionChecks.Add(op);
+                // Clean up temp dir
+                try { Directory.Delete(_updateCheckTmpDir, true); } catch { }
             }
-
-            // For plugins without SubPath, mark as done immediately
-            foreach (var plugin in Plugins)
+            else
             {
-                if (string.IsNullOrEmpty(plugin.SubPath))
+                Debug.LogWarning("Failed to fetch remote plugin versions.");
+                foreach (var plugin in Plugins)
                     _remoteVersions[plugin.PackageName] = new RemoteInfo { Fetched = true, Version = null };
             }
 
-            CheckUpdatesDone();
-        }
-
-        void CheckUpdatesDone()
-        {
-            if (_remoteVersions.Count < Plugins.Length) return;
             _isCheckingUpdates = false;
             _repaintCallback?.Invoke();
         }
