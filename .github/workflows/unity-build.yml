@@ -24,7 +24,7 @@ on:
         description: "Git ref of devops-toolkit for import_from_git"
         required: false
         type: string
-        default: "v1"
+        default: "main"
       unity_versioning:
         required: false
         type: string
