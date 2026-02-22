@@ -32,13 +32,17 @@ def run(cmd, capture=False, check=True):
 
 
 def _ensure_path():
-    """Add common tool directories to PATH so shutil.which can find them."""
-    extra = ["/opt/homebrew/bin", "/usr/local/bin", os.path.expanduser("~/.npm-global/bin")]
+    """Ensure Homebrew paths take priority (newer tools over system installs)."""
+    priority = ["/opt/homebrew/bin", "/opt/homebrew/sbin"]
+    extra = ["/usr/local/bin", os.path.expanduser("~/.npm-global/bin")]
     current = os.environ.get("PATH", "")
+    parts = current.split(os.pathsep)
+    # Remove priority dirs from current position, then prepend them
+    parts = [p for p in parts if p not in priority]
     for p in extra:
-        if p not in current:
-            current = p + os.pathsep + current
-    os.environ["PATH"] = current
+        if p not in parts:
+            parts.append(p)
+    os.environ["PATH"] = os.pathsep.join(priority + parts)
 
 _ensure_path()
 
@@ -47,8 +51,34 @@ def command_exists(name):
     return shutil.which(name) is not None
 
 
+def check_node_version():
+    """Ensure Node.js >= 20 is available (required by Firebase CLI)."""
+    node = shutil.which("node")
+    if not node:
+        return
+    version_str = run("node --version", capture=True, check=False)
+    if not version_str:
+        return
+    m = re.match(r"v(\d+)", version_str)
+    if not m:
+        return
+    major = int(m.group(1))
+    if major >= 20:
+        return
+    print(f"Node.js {version_str} is too old for Firebase CLI (need >= v20).")
+    if command_exists("brew"):
+        print("Upgrading Node.js via Homebrew...")
+        run("brew upgrade node || brew install node", check=False)
+        _ensure_path()
+    else:
+        print("Error: Please upgrade Node.js to >= v20.")
+        sys.exit(1)
+
+
 def check_prerequisites():
     """Ensure Firebase CLI is installed and user is logged in."""
+    check_node_version()
+
     # Firebase CLI
     if not command_exists("firebase"):
         if command_exists("npm"):
