@@ -17,6 +17,49 @@ jobs:
   setup:
     runs-on: [self-hosted, macOS]
     steps:
+      - name: Verify runner prerequisites
+        run: |
+          echo "=== Checking required tools ==="
+          FAIL=0
+
+          for cmd in firebase gcloud git; do
+            if command -v "$cmd" &>/dev/null; then
+              echo "✓ $cmd: $(command -v $cmd)"
+            else
+              echo "✗ $cmd: NOT FOUND"
+              FAIL=1
+            fi
+          done
+
+          echo ""
+          echo "=== Checking authentication ==="
+
+          # Firebase auth
+          if firebase projects:list --limit 1 &>/dev/null; then
+            echo "✓ firebase: authenticated"
+          else
+            echo "✗ firebase: not authenticated (run: firebase login)"
+            FAIL=1
+          fi
+
+          # gcloud auth
+          ACCOUNT=$(gcloud config get account 2>/dev/null)
+          if [ -n "$ACCOUNT" ]; then
+            echo "✓ gcloud: authenticated as $ACCOUNT"
+          else
+            echo "✗ gcloud: not authenticated (run: gcloud auth login)"
+            FAIL=1
+          fi
+
+          if [ $FAIL -ne 0 ]; then
+            echo ""
+            echo "Runner is missing required tools or auth. Fix the issues above and re-run."
+            exit 1
+          fi
+
+          echo ""
+          echo "=== All checks passed ==="
+
       - uses: actions/checkout@v4
 
       - name: Create Firebase Project
