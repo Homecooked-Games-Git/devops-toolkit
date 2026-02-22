@@ -39,7 +39,7 @@ jobs:
   # ── iOS ──────────────────────────────────────────────
   build-ios:
     if: inputs.build_target == 'iOS'
-    name: "Build iOS - ${{ inputs.game_name }}"
+    name: "Build iOS"
     runs-on: [self-hosted, macOS]
 
     env:
@@ -91,7 +91,7 @@ jobs:
   # ── Android ──────────────────────────────────────────
   build-android:
     if: inputs.build_target == 'Android'
-    name: "Build Android - ${{ inputs.game_name }}"
+    name: "Build Android"
     runs-on: [self-hosted, macOS]
 
     env:
