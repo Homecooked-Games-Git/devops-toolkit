@@ -64,7 +64,7 @@ jobs:
 
       - name: Auto-increment Build Number
         run: |
-          CURRENT=$(grep -oP 'iPhone: \K[0-9]+' ProjectSettings/ProjectSettings.asset | head -1)
+          CURRENT=$(sed -n 's/.*iPhone: \([0-9]*\).*/\1/p' ProjectSettings/ProjectSettings.asset | head -1)
           BUILD_NUMBER=$(( CURRENT + ${{ github.run_number }} ))
           sed -i '' -E "s/(buildNumber:.*iPhone: )[0-9]+/\1${BUILD_NUMBER}/" ProjectSettings/ProjectSettings.asset
           echo "Build number: ${CURRENT} + ${{ github.run_number }} = ${BUILD_NUMBER}"
@@ -117,7 +117,7 @@ jobs:
 
       - name: Auto-increment Build Number
         run: |
-          CURRENT=$(grep -oP 'AndroidBundleVersionCode: \K[0-9]+' ProjectSettings/ProjectSettings.asset)
+          CURRENT=$(sed -n 's/.*AndroidBundleVersionCode: \([0-9]*\).*/\1/p' ProjectSettings/ProjectSettings.asset)
           BUILD_NUMBER=$(( CURRENT + ${{ github.run_number }} ))
           sed -i '' -E "s/(AndroidBundleVersionCode: )[0-9]+/\1${BUILD_NUMBER}/" ProjectSettings/ProjectSettings.asset
           echo "Build number: ${CURRENT} + ${{ github.run_number }} = ${BUILD_NUMBER}"
