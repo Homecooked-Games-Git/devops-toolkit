@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -7,12 +8,13 @@ using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 using UnityEngine.Networking;
+using Debug = UnityEngine.Debug;
 
 namespace HomecookedGames.DevOps.Editor
 {
     public class EssentialsTab
     {
-        const string PluginsRepoBase = "https://github.com/Homecooked-Games-Git/unity-plugins.git";
+        const string PluginsRepoSsh = "git@github.com:Homecooked-Games-Git/unity-plugins.git";
         const string RawRepoBase = "https://raw.githubusercontent.com/Homecooked-Games-Git/unity-plugins/main";
 
         struct PluginInfo
@@ -21,9 +23,10 @@ namespace HomecookedGames.DevOps.Editor
             public string PackageName;
             public string SubPath; // subfolder in the monorepo (null if using custom git URL)
             public string AssetsFolderPath; // fallback detection path under Assets/ (null if UPM-only)
-            public string CustomGitUrl; // override git URL for public packages (null = use PluginsRepoBase)
+            public string CustomGitUrl; // override git URL for public packages (null = use private repo)
+            public bool IsPrivateRepo => CustomGitUrl == null;
 
-            public string GitUrl => CustomGitUrl ?? $"{PluginsRepoBase}?path=/{SubPath}#main";
+            public string GitUrl => CustomGitUrl ?? $"{PluginsRepoSsh}?path=/{SubPath}#main";
             public string RemotePackageJsonUrl => $"{RawRepoBase}/{SubPath}/package.json";
         }
 
@@ -46,7 +49,6 @@ namespace HomecookedGames.DevOps.Editor
             public InstallSource Source;
         }
 
-        // Remote version state
         struct RemoteInfo
         {
             public bool Fetched;
@@ -59,9 +61,15 @@ namespace HomecookedGames.DevOps.Editor
         ListRequest _listRequest;
         AddRequest _addRequest;
         RemoveRequest _removeRequest;
-        string _pendingAction; // package name being added/removed
+        string _pendingAction;
         bool _isCheckingUpdates;
         readonly List<UnityWebRequestAsyncOperation> _versionChecks = new();
+
+        // SSH auth state
+        bool _sshChecked;
+        bool _sshAvailable;
+        bool _sshChecking;
+        Process _sshProcess;
 
         Action _repaintCallback;
 
@@ -73,12 +81,25 @@ namespace HomecookedGames.DevOps.Editor
         public void OnEnable()
         {
             RefreshInstalledPackages();
+            CheckSshAccess();
         }
 
         public void OnGUI()
         {
             EditorGUILayout.LabelField("Essential Plugins", EditorStyles.boldLabel);
             EditorGUILayout.Space(4);
+
+            if (_sshChecked && !_sshAvailable)
+            {
+                EditorGUILayout.HelpBox(
+                    "SSH access to private plugin repo not available.\n" +
+                    "Run in terminal: ssh -T git@github.com\n" +
+                    "If that fails, set up SSH keys: https://docs.github.com/en/authentication/connecting-to-github-with-ssh",
+                    MessageType.Warning);
+                if (GUILayout.Button("Retry SSH Check"))
+                    CheckSshAccess();
+                EditorGUILayout.Space(4);
+            }
 
             // Check for Updates button
             EditorGUILayout.BeginHorizontal();
@@ -144,13 +165,14 @@ namespace HomecookedGames.DevOps.Editor
 
             GUILayout.FlexibleSpace();
 
-            // Action buttons
-            GUI.enabled = !IsBusy;
+            // Action buttons — disable private repo buttons if SSH not available
+            bool canInstallPrivate = !plugin.IsPrivateRepo || _sshAvailable;
+            GUI.enabled = !IsBusy && canInstallPrivate;
+
             if (info.Installed)
             {
                 if (info.Source == InstallSource.AssetsFolder)
                 {
-                    // Installed via Assets folder — offer migration to UPM
                     if (GUILayout.Button("Migrate to UPM", GUILayout.Width(100)))
                     {
                         if (EditorUtility.DisplayDialog("Migrate to UPM",
@@ -177,6 +199,56 @@ namespace HomecookedGames.DevOps.Editor
 
             EditorGUILayout.EndHorizontal();
         }
+
+        // ── SSH Auth Check ──
+
+        void CheckSshAccess()
+        {
+            _sshChecking = true;
+            _sshChecked = false;
+
+            try
+            {
+                _sshProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"ls-remote {PluginsRepoSsh}",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+                _sshProcess.Start();
+                _sshProcess.BeginOutputReadLine();
+                _sshProcess.BeginErrorReadLine();
+
+                EditorApplication.update += PollSshCheck;
+            }
+            catch
+            {
+                _sshChecked = true;
+                _sshAvailable = false;
+                _sshChecking = false;
+            }
+        }
+
+        void PollSshCheck()
+        {
+            if (_sshProcess == null || !_sshProcess.HasExited) return;
+
+            EditorApplication.update -= PollSshCheck;
+            _sshAvailable = _sshProcess.ExitCode == 0;
+            _sshChecked = true;
+            _sshChecking = false;
+            _sshProcess.Dispose();
+            _sshProcess = null;
+            _repaintCallback?.Invoke();
+        }
+
+        // ── Package Operations ──
 
         void RefreshInstalledPackages()
         {
@@ -277,6 +349,8 @@ namespace HomecookedGames.DevOps.Editor
 
             foreach (var plugin in Plugins)
             {
+                if (string.IsNullOrEmpty(plugin.SubPath)) continue;
+
                 var url = plugin.RemotePackageJsonUrl;
                 var request = UnityWebRequest.Get(url);
                 var op = request.SendWebRequest();
@@ -298,6 +372,15 @@ namespace HomecookedGames.DevOps.Editor
                 };
                 _versionChecks.Add(op);
             }
+
+            // For plugins without SubPath, mark as done immediately
+            foreach (var plugin in Plugins)
+            {
+                if (string.IsNullOrEmpty(plugin.SubPath))
+                    _remoteVersions[plugin.PackageName] = new RemoteInfo { Fetched = true, Version = null };
+            }
+
+            CheckUpdatesDone();
         }
 
         void CheckUpdatesDone()
@@ -328,6 +411,6 @@ namespace HomecookedGames.DevOps.Editor
             }
         }
 
-        bool IsBusy => _pendingAction != null || _isCheckingUpdates;
+        bool IsBusy => _pendingAction != null || _isCheckingUpdates || _sshChecking;
     }
 }
