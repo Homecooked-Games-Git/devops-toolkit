@@ -30,11 +30,11 @@ namespace HomecookedGames.DevOps.Editor
         {
             DrawProjectInfo();
             EditorGUILayout.Space(10);
+            DrawFullSetupSection();
+            EditorGUILayout.Space(10);
             DrawFirebaseSection();
             EditorGUILayout.Space(10);
             DrawBoilerplateSection();
-            EditorGUILayout.Space(10);
-            DrawFullSetupSection();
 
             if (_showCliOutput || _runner.IsRunning)
                 DrawCliOutput();

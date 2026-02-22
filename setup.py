@@ -307,6 +307,86 @@ gem "fastlane-plugin-firebase_app_distribution"
 """
     write_file("Gemfile", gemfile)
 
+    # .gitignore
+    gitignore = """# =========================
+# Unity Auto-Generated Folders
+# =========================
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+
+# Memory captures and profiler logs
+/[Mm]emoryCaptures/
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.ipa
+
+# =========================
+# User-Specific / Local Settings
+# =========================
+**/ProjectSettings/RiderScriptEditorPersistedState.asset
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# =========================
+# OS Generated
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+$RECYCLE.BIN/
+Desktop.ini
+
+# =========================
+# IDE & Local Settings
+# =========================
+.idea/
+/.vs/
+
+# =========================
+# Cross-Platform / System Artifacts
+# =========================
+[Nn]ul
+[Nn]ul.ext
+
+# --- Unity Builder Action ---
+/[Aa]ssets/Editor/UnityBuilderAction/
+/[Aa]ssets/Editor/UnityBuilderAction.meta
+
+# --- Mobile/Platform Specific ---
+/[Aa]ssets/Plugins/Android/mainTemplate.gradle
+/[Aa]ssets/Plugins/Android/launcherTemplate.gradle
+/[Aa]ssets/Plugins/Android/gradleTemplate.properties
+
+# --- Fastlane Secrets ---
+fastlane/api_key.json
+fastlane/AuthKey*.p8
+fastlane/report.xml
+"""
+    write_file(".gitignore", gitignore)
+
 
 def generate_gemfile_lock():
     """Generate Gemfile.lock if bundler is available."""
@@ -349,6 +429,7 @@ def main():
     # Summary
     print(f"""
 Done! Files created:
+  .gitignore
   .github/workflows/build.yml
   fastlane/Fastfile
   fastlane/Matchfile
