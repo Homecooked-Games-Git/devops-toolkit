@@ -124,15 +124,15 @@ def read_bundle_ids(game_name):
     android_id = None
     default_id = None
 
-    m = re.search(r"iPhone:\s*([\w.]+)", block)
+    m = re.search(r"iPhone:\s*([\w.\-]+)", block)
     if m:
         ios_id = m.group(1).strip()
 
-    m = re.search(r"Android:\s*([\w.]+)", block)
+    m = re.search(r"Android:\s*([\w.\-]+)", block)
     if m:
         android_id = m.group(1).strip()
 
-    m = re.search(r"Standalone:\s*([\w.]+)", block)
+    m = re.search(r"Standalone:\s*([\w.\-]+)", block)
     if m:
         default_id = m.group(1).strip()
 
