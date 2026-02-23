@@ -152,6 +152,7 @@ jobs:
         with:
           name: "${{ inputs.game_name }}-iOS-Build"
           path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.game_name }}.ipa"
+          retention-days: 7
 
       - name: Notify Slack
         if: always()
@@ -288,6 +289,7 @@ jobs:
         with:
           name: "${{ inputs.game_name }}-Android-Build"
           path: build/Android
+          retention-days: 7
 
       - name: Notify Slack
         if: always()
