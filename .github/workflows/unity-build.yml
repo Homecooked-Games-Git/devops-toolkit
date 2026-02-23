@@ -178,7 +178,7 @@ jobs:
 
           PAYLOAD=$(cat <<EOJSON
           {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
-            {"title":"Build","value":"<${RUN_URL}|View Run>","short":true},
+            {"title":".ipa Download","value":"<${RUN_URL}|View Artifacts>","short":true},
             {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
             ${FB_FIELD}
           ]}]}
@@ -314,7 +314,7 @@ jobs:
 
           PAYLOAD=$(cat <<EOJSON
           {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
-            {"title":"Build","value":"<${RUN_URL}|View Run>","short":true},
+            {"title":".apk Download","value":"<${RUN_URL}|View Artifacts>","short":true},
             {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
             ${FB_FIELD}
           ]}]}
