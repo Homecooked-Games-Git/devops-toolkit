@@ -61,10 +61,20 @@ namespace HomecookedGames.DevOps.Editor
             if (allBoilerplate && _step1Status != StepStatus.InProgress)
                 _step1Status = StepStatus.Done;
 
+            // Step 2: Done if boilerplate files are tracked by git
+            if (allBoilerplate && _checker.BoilerplateTracked
+                && _step2Status != StepStatus.InProgress)
+                _step2Status = StepStatus.Done;
+
+            // Step 3: Done if Firebase configs exist (implies remote setup succeeded)
+            bool hasFirebaseConfigs = _checker.FirebaseIOS.Status == ComponentStatus.Present
+                && _checker.FirebaseAndroid.Status == ComponentStatus.Present;
+            if (_step2Status == StepStatus.Done && hasFirebaseConfigs
+                && _step3Status != StepStatus.InProgress)
+                _step3Status = StepStatus.Done;
+
             // Step 4: Done if Firebase configs exist
-            if (_checker.FirebaseIOS.Status == ComponentStatus.Present
-                && _checker.FirebaseAndroid.Status == ComponentStatus.Present
-                && _step4Status != StepStatus.InProgress)
+            if (hasFirebaseConfigs && _step4Status != StepStatus.InProgress)
                 _step4Status = StepStatus.Done;
         }
 

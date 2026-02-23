@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -73,6 +74,7 @@ namespace HomecookedGames.DevOps.Editor
         public ComponentStatus GitIgnore { get; private set; }
         public ComponentStatus SetupYml { get; private set; }
         public ServiceAccountInfo ServiceAccount { get; set; }
+        public bool BoilerplateTracked { get; private set; }
 
         public StatusChecker()
         {
@@ -90,6 +92,7 @@ namespace HomecookedGames.DevOps.Editor
             RefreshGemfile();
             RefreshGitIgnore();
             RefreshSetupYml();
+            RefreshBoilerplateTracked();
         }
 
         void RefreshProjectInfo()
@@ -205,6 +208,31 @@ namespace HomecookedGames.DevOps.Editor
         {
             var path = Path.Combine(ProjectRoot, ".github", "workflows", "setup.yml");
             SetupYml = File.Exists(path) ? ComponentStatus.Present : ComponentStatus.Missing;
+        }
+
+        void RefreshBoilerplateTracked()
+        {
+            BoilerplateTracked = false;
+            try
+            {
+                var psi = new ProcessStartInfo("git",
+                    "ls-files --error-unmatch " +
+                    ".github/workflows/build.yml .github/workflows/setup.yml " +
+                    "fastlane/Fastfile fastlane/Matchfile Gemfile .gitignore")
+                {
+                    WorkingDirectory = ProjectRoot,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc.StandardOutput.ReadToEnd();
+                proc.StandardError.ReadToEnd();
+                proc.WaitForExit();
+                BoilerplateTracked = proc.ExitCode == 0;
+            }
+            catch { /* git not available */ }
         }
 
         static string ExtractPlistValue(string content, string key)
