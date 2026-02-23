@@ -153,6 +153,32 @@ jobs:
           name: "${{ inputs.game_name }}-iOS-Build"
           path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.game_name }}.ipa"
 
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            EMOJI=":white_check_mark:"; STATUS="succeeded"; COLOR="#36a64f"
+          else
+            EMOJI=":x:"; STATUS="failed"; COLOR="#cc0000"
+          fi
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEXT="${EMOJI} *${{ inputs.game_name }}* iOS build ${STATUS}"
+          FIELDS="[{\"title\":\"Build\",\"value\":\"<${RUN_URL}|View Run>\",\"short\":true},{\"title\":\"Distribution\",\"value\":\"${{ inputs.distribution }}\",\"short\":true}]"
+
+          if [ -f firebase_release_url.txt ]; then
+            FB_URL=$(cat firebase_release_url.txt)
+            if [ -n "$FB_URL" ]; then
+              FIELDS=$(echo "$FIELDS" | sed 's/]$/,{"title":"Firebase","value":"<'"$FB_URL"'|Install Link>","short":true}]/')
+            fi
+          fi
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${TEXT}\",\"fields\":${FIELDS}}]}"
+
   # ── Android ──────────────────────────────────────────
   build-android:
     if: inputs.build_target == 'Android'
@@ -252,3 +278,29 @@ jobs:
         with:
           name: "${{ inputs.game_name }}-Android-Build"
           path: build/Android
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            EMOJI=":white_check_mark:"; STATUS="succeeded"; COLOR="#36a64f"
+          else
+            EMOJI=":x:"; STATUS="failed"; COLOR="#cc0000"
+          fi
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEXT="${EMOJI} *${{ inputs.game_name }}* Android build ${STATUS}"
+          FIELDS="[{\"title\":\"Build\",\"value\":\"<${RUN_URL}|View Run>\",\"short\":true},{\"title\":\"Distribution\",\"value\":\"${{ inputs.distribution }}\",\"short\":true}]"
+
+          if [ -f firebase_release_url.txt ]; then
+            FB_URL=$(cat firebase_release_url.txt)
+            if [ -n "$FB_URL" ]; then
+              FIELDS=$(echo "$FIELDS" | sed 's/]$/,{"title":"Firebase","value":"<'"$FB_URL"'|Install Link>","short":true}]/')
+            fi
+          fi
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${TEXT}\",\"fields\":${FIELDS}}]}"

@@ -43,6 +43,15 @@ def resolve_firebase_app_id(platform)
   end
 end
 
+def write_firebase_release_url
+  release = lane_context[SharedValues::FIREBASE_APP_DISTRO_RELEASE]
+  return unless release
+  root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
+  url = release[:testingUri] || release["testingUri"] || ""
+  File.write(File.join(root, "firebase_release_url.txt"), url)
+  UI.success("Firebase testing URL: #{url}") unless url.empty?
+end
+
 def find_android_artifact
   root = ENV["GITHUB_WORKSPACE"] || Dir.pwd
   build_dir = File.join(root, "build", "Android")
@@ -209,6 +218,8 @@ platform :ios do
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
       ipa_path: lane_context[SharedValues::IPA_OUTPUT_PATH]
     )
+
+    write_firebase_release_url
   end
 
 end
@@ -224,6 +235,8 @@ platform :android do
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
       android_artifact_path: find_android_artifact
     )
+
+    write_firebase_release_url
   end
 
 end
