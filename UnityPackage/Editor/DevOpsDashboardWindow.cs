@@ -69,6 +69,13 @@ namespace HomecookedGames.DevOps.Editor
 
             GUILayout.FlexibleSpace();
 
+            // Spinner while checking for update
+            if (!_updateChecked && !string.IsNullOrEmpty(_currentVersion))
+            {
+                var spinner = EditorGUIUtility.IconContent("Loading");
+                GUILayout.Label(spinner, GUILayout.Width(16), GUILayout.Height(16));
+            }
+
             // Version label
             if (!string.IsNullOrEmpty(_currentVersion))
                 GUILayout.Label($"v{_currentVersion}", EditorStyles.miniLabel);
@@ -77,7 +84,7 @@ namespace HomecookedGames.DevOps.Editor
             if (_updateChecked && !string.IsNullOrEmpty(_remoteVersion) && IsNewer(_remoteVersion, _currentVersion))
             {
                 GUI.enabled = !_isUpdating;
-                if (GUILayout.Button($"Update to v{_remoteVersion}", EditorStyles.toolbarButton))
+                if (GUILayout.Button(_isUpdating ? "Updating..." : $"Update to v{_remoteVersion}", EditorStyles.toolbarButton))
                     UpdateSelf();
                 GUI.enabled = true;
             }

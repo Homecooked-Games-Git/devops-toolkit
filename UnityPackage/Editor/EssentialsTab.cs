@@ -71,6 +71,24 @@ namespace HomecookedGames.DevOps.Editor
 
         Action _repaintCallback;
 
+        // Cached styles
+        static GUIStyle _updateAvailableStyle;
+
+        static GUIStyle UpdateAvailableStyle
+        {
+            get
+            {
+                if (_updateAvailableStyle == null)
+                {
+                    _updateAvailableStyle = new GUIStyle(EditorStyles.miniLabel)
+                    {
+                        normal = { textColor = new Color(0.2f, 0.7f, 1f) }
+                    };
+                }
+                return _updateAvailableStyle;
+            }
+        }
+
         public void SetRepaintCallback(Action repaint)
         {
             _repaintCallback = repaint;
@@ -84,8 +102,7 @@ namespace HomecookedGames.DevOps.Editor
 
         public void OnGUI()
         {
-            EditorGUILayout.LabelField("Essential Plugins", EditorStyles.boldLabel);
-            EditorGUILayout.Space(4);
+            DrawSectionHeader("Essential Plugins");
 
             if (_sshChecked && !_sshAvailable)
             {
@@ -94,7 +111,7 @@ namespace HomecookedGames.DevOps.Editor
                     "Run in terminal: ssh -T git@github.com\n" +
                     "If that fails, set up SSH keys: https://docs.github.com/en/authentication/connecting-to-github-with-ssh",
                     MessageType.Warning);
-                if (GUILayout.Button("Retry SSH Check"))
+                if (GUILayout.Button("Retry SSH Check", GUILayout.Width(120)))
                     CheckSshAccess();
                 EditorGUILayout.Space(4);
             }
@@ -102,8 +119,14 @@ namespace HomecookedGames.DevOps.Editor
             // Check for Updates button
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
+            if (_isCheckingUpdates)
+            {
+                var spinner = EditorGUIUtility.IconContent("Loading");
+                GUILayout.Label(spinner, GUILayout.Width(20), GUILayout.Height(20));
+                GUILayout.Label("Checking...", EditorStyles.miniLabel);
+            }
             GUI.enabled = !IsBusy;
-            if (GUILayout.Button("Check for Updates", GUILayout.Width(140)))
+            if (GUILayout.Button("Check for Updates", EditorStyles.miniButton, GUILayout.Width(120)))
                 CheckForUpdates();
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
@@ -115,10 +138,11 @@ namespace HomecookedGames.DevOps.Editor
                 DrawPluginRow(plugin);
             }
 
-            if (IsBusy)
+            if (IsBusy && !string.IsNullOrEmpty(_pendingAction))
             {
-                EditorGUILayout.Space(8);
-                EditorGUILayout.HelpBox("Package operation in progress...", MessageType.Info);
+                EditorGUILayout.Space(4);
+                var pluginName = Plugins.FirstOrDefault(p => p.PackageName == _pendingAction).DisplayName ?? _pendingAction;
+                EditorGUILayout.HelpBox($"Working on {pluginName}...", MessageType.Info);
             }
         }
 
@@ -130,9 +154,14 @@ namespace HomecookedGames.DevOps.Editor
             EditorGUILayout.BeginHorizontal();
 
             // Status icon
-            var icon = info.Installed
-                ? EditorGUIUtility.IconContent("TestPassed")
-                : EditorGUIUtility.IconContent("TestFailed");
+            bool isPending = _pendingAction == plugin.PackageName;
+            GUIContent icon;
+            if (isPending)
+                icon = EditorGUIUtility.IconContent("Loading");
+            else if (info.Installed)
+                icon = EditorGUIUtility.IconContent("TestPassed");
+            else
+                icon = EditorGUIUtility.IconContent("TestFailed");
             GUILayout.Label(icon, GUILayout.Width(20), GUILayout.Height(20));
 
             // Plugin name
@@ -152,14 +181,9 @@ namespace HomecookedGames.DevOps.Editor
             }
 
             if (updateAvailable)
-            {
-                var style = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = new Color(0.2f, 0.7f, 1f) } };
-                GUILayout.Label($"v{remote.Version} available", style, GUILayout.Width(110));
-            }
+                GUILayout.Label($"v{remote.Version} available", UpdateAvailableStyle, GUILayout.Width(110));
             else
-            {
                 GUILayout.Label("", GUILayout.Width(110));
-            }
 
             GUILayout.FlexibleSpace();
 
@@ -171,7 +195,10 @@ namespace HomecookedGames.DevOps.Editor
             {
                 if (info.Source == InstallSource.AssetsFolder)
                 {
-                    if (GUILayout.Button("Migrate to UPM", GUILayout.Width(100)))
+                    var migrateContent = canInstallPrivate
+                        ? new GUIContent("Migrate to UPM")
+                        : new GUIContent("Migrate to UPM", "SSH access required");
+                    if (GUILayout.Button(migrateContent, EditorStyles.miniButton, GUILayout.Width(100)))
                     {
                         if (EditorUtility.DisplayDialog("Migrate to UPM",
                                 $"This will install {plugin.DisplayName} via Package Manager.\n\n" +
@@ -182,15 +209,18 @@ namespace HomecookedGames.DevOps.Editor
                 }
                 else
                 {
-                    if (updateAvailable && GUILayout.Button("Update", GUILayout.Width(60)))
+                    if (updateAvailable && GUILayout.Button("Update", EditorStyles.miniButton, GUILayout.Width(55)))
                         AddPackage(plugin);
-                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                    if (GUILayout.Button("Remove", EditorStyles.miniButton, GUILayout.Width(55)))
                         RemovePackage(plugin);
                 }
             }
             else
             {
-                if (GUILayout.Button("Add", GUILayout.Width(60)))
+                var addContent = canInstallPrivate
+                    ? new GUIContent("Add")
+                    : new GUIContent("Add", "SSH access required for private plugins");
+                if (GUILayout.Button(addContent, EditorStyles.miniButton, GUILayout.Width(55)))
                     AddPackage(plugin);
             }
             GUI.enabled = true;
@@ -451,5 +481,13 @@ namespace HomecookedGames.DevOps.Editor
         }
 
         bool IsBusy => _pendingAction != null || _isCheckingUpdates || _sshChecking;
+
+        static void DrawSectionHeader(string title)
+        {
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+            var rect = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(rect, new Color(0.3f, 0.3f, 0.3f, 0.5f));
+            EditorGUILayout.Space(4);
+        }
     }
 }

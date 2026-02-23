@@ -14,13 +14,21 @@ namespace HomecookedGames.DevOps.Editor
 
         string _gameName;
         Vector2 _cliScrollPos;
-        bool _showCliOutput = true;
+        bool _cliFoldout;
 
         // Wizard step statuses
         StepStatus _step1Status; // Generate Boilerplate
         StepStatus _step2Status; // Commit & Push
         StepStatus _step3Status; // Firebase Setup (Remote)
         StepStatus _step4Status; // Pull Configs
+
+        static readonly string[] StepDescriptions =
+        {
+            "Creates workflow files, Fastfile, Matchfile, Gemfile, and .gitignore",
+            "Commits generated files and pushes to remote",
+            "Triggers Firebase project creation via GitHub Actions",
+            "Pulls Firebase config files committed by the workflow"
+        };
 
         public CICDTab(StatusChecker checker, ProcessRunner runner)
         {
@@ -38,15 +46,14 @@ namespace HomecookedGames.DevOps.Editor
         public void OnGUI()
         {
             DrawProjectInfo();
-            EditorGUILayout.Space(10);
+            EditorGUILayout.Space(12);
             DrawSetupWizard();
-            EditorGUILayout.Space(10);
+            EditorGUILayout.Space(12);
             DrawFirebaseSection();
-            EditorGUILayout.Space(10);
+            EditorGUILayout.Space(12);
             DrawBoilerplateSection();
-
-            if (_showCliOutput || _runner.IsRunning)
-                DrawCliOutput();
+            EditorGUILayout.Space(12);
+            DrawCliOutput();
         }
 
         void RefreshStepStatuses()
@@ -82,7 +89,7 @@ namespace HomecookedGames.DevOps.Editor
 
         void DrawProjectInfo()
         {
-            EditorGUILayout.LabelField("Project Info", EditorStyles.boldLabel);
+            DrawSectionHeader("Project Info");
             EditorGUI.indentLevel++;
             EditorGUILayout.LabelField("Product Name", _checker.Project.ProductName ?? "—");
             EditorGUILayout.LabelField("iOS Bundle ID", _checker.Project.IOSBundleId ?? "—");
@@ -93,43 +100,50 @@ namespace HomecookedGames.DevOps.Editor
 
         void DrawSetupWizard()
         {
-            EditorGUILayout.LabelField("Project Setup", EditorStyles.boldLabel);
+            DrawSectionHeader("Project Setup");
             EditorGUI.indentLevel++;
 
             // Step 1: Generate Boilerplate
-            DrawWizardStep(1, "Generate Boilerplate", _step1Status,
+            DrawWizardStep(0, "Generate Boilerplate", _step1Status,
                 enabled: _step1Status != StepStatus.InProgress && _step1Status != StepStatus.Done,
                 buttonLabel: "Generate",
+                disabledReason: _step1Status == StepStatus.Done ? "Already generated" : null,
                 onClick: WizardGenerate);
 
             // Step 2: Commit & Push
-            DrawWizardStep(2, "Commit & Push", _step2Status,
+            DrawWizardStep(1, "Commit & Push", _step2Status,
                 enabled: _step1Status == StepStatus.Done
                     && _step2Status != StepStatus.InProgress
                     && _step2Status != StepStatus.Done,
                 buttonLabel: "Commit & Push",
+                disabledReason: _step1Status != StepStatus.Done ? "Complete Step 1 first"
+                    : _step2Status == StepStatus.Done ? "Already pushed" : null,
                 onClick: WizardCommitPush);
 
             // Step 3: Firebase Setup (Remote)
-            DrawWizardStep(3, "Firebase Setup (Remote)", _step3Status,
+            DrawWizardStep(2, "Firebase Setup (Remote)", _step3Status,
                 enabled: _step2Status == StepStatus.Done
                     && _step3Status != StepStatus.InProgress
                     && _step3Status != StepStatus.Done,
                 buttonLabel: "Run Setup",
+                disabledReason: _step2Status != StepStatus.Done ? "Complete Step 2 first"
+                    : _step3Status == StepStatus.Done ? "Already configured" : null,
                 onClick: WizardFirebaseSetup);
 
             // Step 4: Pull Configs
-            DrawWizardStep(4, "Pull Configs", _step4Status,
+            DrawWizardStep(3, "Pull Configs", _step4Status,
                 enabled: _step3Status == StepStatus.Done
                     && _step4Status != StepStatus.InProgress
                     && _step4Status != StepStatus.Done,
                 buttonLabel: "Pull",
+                disabledReason: _step3Status != StepStatus.Done ? "Complete Step 3 first"
+                    : _step4Status == StepStatus.Done ? "Configs present" : null,
                 onClick: WizardPull);
 
             EditorGUI.indentLevel--;
         }
 
-        void DrawWizardStep(int stepNum, string label, StepStatus status, bool enabled, string buttonLabel, Action onClick)
+        void DrawWizardStep(int index, string label, StepStatus status, bool enabled, string buttonLabel, string disabledReason, Action onClick)
         {
             EditorGUILayout.BeginHorizontal();
 
@@ -137,23 +151,33 @@ namespace HomecookedGames.DevOps.Editor
             {
                 StepStatus.Done => EditorGUIUtility.IconContent("TestPassed"),
                 StepStatus.Failed => EditorGUIUtility.IconContent("TestFailed"),
-                StepStatus.InProgress => EditorGUIUtility.IconContent("WaitSpin00"),
+                StepStatus.InProgress => EditorGUIUtility.IconContent("Loading"),
                 _ => EditorGUIUtility.IconContent("TestNormal")
             };
             GUILayout.Label(icon, GUILayout.Width(20), GUILayout.Height(20));
-            GUILayout.Label($"Step {stepNum}: {label}", GUILayout.Width(220));
+
+            EditorGUILayout.BeginVertical();
+            GUILayout.Label($"Step {index + 1}: {label}");
+            GUILayout.Label(StepDescriptions[index], EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+
+            GUILayout.FlexibleSpace();
 
             GUI.enabled = enabled && !_runner.IsRunning;
-            if (GUILayout.Button(buttonLabel, GUILayout.Width(100)))
+            var buttonContent = !string.IsNullOrEmpty(disabledReason) && !enabled
+                ? new GUIContent(buttonLabel, disabledReason)
+                : new GUIContent(buttonLabel);
+            if (GUILayout.Button(buttonContent, GUILayout.Width(100)))
                 onClick();
             GUI.enabled = true;
 
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(2);
         }
 
         void DrawFirebaseSection()
         {
-            EditorGUILayout.LabelField("Firebase", EditorStyles.boldLabel);
+            DrawSectionHeader("Firebase");
             EditorGUI.indentLevel++;
 
             // iOS config
@@ -180,6 +204,8 @@ namespace HomecookedGames.DevOps.Editor
 
                 var detail = !sa.Checked ? "not checked" : sa.Status == ComponentStatus.Present ? "configured" : "not added";
                 GUILayout.Label(detail, EditorStyles.miniLabel);
+
+                GUILayout.FlexibleSpace();
 
                 GUI.enabled = !_runner.IsRunning;
                 if (GUILayout.Button("Check", GUILayout.Width(50)))
@@ -214,7 +240,7 @@ namespace HomecookedGames.DevOps.Editor
 
         void DrawBoilerplateSection()
         {
-            EditorGUILayout.LabelField("CI/CD Boilerplate", EditorStyles.boldLabel);
+            DrawSectionHeader("CI/CD Boilerplate");
             EditorGUI.indentLevel++;
 
             var wf = _checker.Workflow;
@@ -256,29 +282,43 @@ namespace HomecookedGames.DevOps.Editor
 
         void DrawCliOutput()
         {
-            _showCliOutput = true;
-            EditorGUILayout.Space(10);
-            EditorGUILayout.LabelField("CLI Output", EditorStyles.boldLabel);
+            var hasOutput = !string.IsNullOrEmpty(_runner.Output) || !string.IsNullOrEmpty(_runner.Error);
+
+            // Auto-open when running, keep user's choice otherwise
+            if (_runner.IsRunning)
+                _cliFoldout = true;
+
+            if (!hasOutput && !_runner.IsRunning)
+                return;
+
+            // Header with foldout and optional spinner
+            EditorGUILayout.BeginHorizontal();
+            _cliFoldout = EditorGUILayout.Foldout(_cliFoldout, "CLI Output", true, EditorStyles.foldoutHeader);
+            if (_runner.IsRunning)
+            {
+                var spinner = EditorGUIUtility.IconContent("Loading");
+                GUILayout.Label(spinner, GUILayout.Width(20), GUILayout.Height(20));
+            }
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Clear", EditorStyles.miniButton, GUILayout.Width(50)))
+            {
+                _runner.ClearOutput();
+                _cliFoldout = false;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (!_cliFoldout)
+                return;
 
             var output = _runner.Output;
             if (!string.IsNullOrEmpty(_runner.Error))
                 output += "\n" + _runner.Error;
 
+            // Auto-scroll to bottom
+            _cliScrollPos = new Vector2(0, float.MaxValue);
             _cliScrollPos = EditorGUILayout.BeginScrollView(_cliScrollPos, GUILayout.Height(150));
             EditorGUILayout.TextArea(output, EditorStyles.helpBox, GUILayout.ExpandHeight(true));
             EditorGUILayout.EndScrollView();
-
-            if (!_runner.IsRunning)
-            {
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Clear", GUILayout.Width(60)))
-                {
-                    _runner.ClearOutput();
-                    _showCliOutput = false;
-                }
-                EditorGUILayout.EndHorizontal();
-            }
         }
 
         // ── Wizard Actions ──
@@ -596,6 +636,14 @@ gh run watch $RUN_ID --exit-status
         {
             if (string.IsNullOrEmpty(url)) return "—";
             return url.Replace("https://github.com/", "");
+        }
+
+        static void DrawSectionHeader(string title)
+        {
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+            var rect = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(rect, new Color(0.3f, 0.3f, 0.3f, 0.5f));
+            EditorGUILayout.Space(4);
         }
 
         static void DrawStatusLine(ComponentStatus status, string label, string detail = null)

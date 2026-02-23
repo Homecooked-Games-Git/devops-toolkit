@@ -35,7 +35,6 @@ namespace HomecookedGames.DevOps.Editor
 
         readonly List<RunInfo> _runs = new();
         bool _fetchingRuns;
-        Vector2 _scrollPos;
 
         Action _repaintCallback;
 
@@ -60,16 +59,30 @@ namespace HomecookedGames.DevOps.Editor
         public void OnGUI()
         {
             DrawBuildParams();
-            EditorGUILayout.Space(10);
+            EditorGUILayout.Space(12);
             DrawRecentRuns();
         }
 
         void DrawBuildParams()
         {
-            EditorGUILayout.LabelField("Build", EditorStyles.boldLabel);
+            DrawSectionHeader("Build");
             EditorGUI.indentLevel++;
 
-            EditorGUILayout.LabelField("Repo", string.IsNullOrEmpty(_repoSlug) ? "detecting..." : _repoSlug);
+            // Repo with loading indicator
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Repo");
+            if (string.IsNullOrEmpty(_repoSlug))
+            {
+                var spinner = EditorGUIUtility.IconContent("Loading");
+                GUILayout.Label(spinner, GUILayout.Width(20), GUILayout.Height(18));
+                GUILayout.Label("detecting...", EditorStyles.miniLabel);
+            }
+            else
+            {
+                EditorGUILayout.SelectableLabel(_repoSlug, EditorStyles.label, GUILayout.Height(18));
+            }
+            EditorGUILayout.EndHorizontal();
+
             _branch = EditorGUILayout.TextField("Branch", _branch);
 
             EditorGUILayout.Space(4);
@@ -84,10 +97,11 @@ namespace HomecookedGames.DevOps.Editor
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(16);
             GUI.enabled = !_runner.IsRunning && !string.IsNullOrEmpty(_repoSlug);
-
-            if (GUILayout.Button("Start Build", GUILayout.Width(100)))
+            var btnContent = string.IsNullOrEmpty(_repoSlug)
+                ? new GUIContent("Start Build", "Waiting for repo detection")
+                : new GUIContent("Start Build");
+            if (GUILayout.Button(btnContent, GUILayout.Width(100)))
                 StartBuild();
-
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
         }
@@ -95,10 +109,15 @@ namespace HomecookedGames.DevOps.Editor
         void DrawRecentRuns()
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Recent Runs", EditorStyles.boldLabel);
+            DrawSectionHeader("Recent Runs");
             GUILayout.FlexibleSpace();
             GUI.enabled = !_fetchingRuns && !string.IsNullOrEmpty(_repoSlug);
-            if (GUILayout.Button("Refresh", GUILayout.Width(60)))
+            if (_fetchingRuns)
+            {
+                var spinner = EditorGUIUtility.IconContent("Loading");
+                GUILayout.Label(spinner, GUILayout.Width(20), GUILayout.Height(20));
+            }
+            if (GUILayout.Button("Refresh", EditorStyles.miniButton, GUILayout.Width(60)))
                 FetchRecentRuns();
             GUI.enabled = true;
             EditorGUILayout.EndHorizontal();
@@ -106,7 +125,12 @@ namespace HomecookedGames.DevOps.Editor
             if (_runs.Count == 0)
             {
                 EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField(_fetchingRuns ? "Loading..." : "No runs found.", EditorStyles.miniLabel);
+                if (_fetchingRuns)
+                    EditorGUILayout.LabelField("Loading runs...", EditorStyles.miniLabel);
+                else if (string.IsNullOrEmpty(_repoSlug))
+                    EditorGUILayout.LabelField("Detecting repository...", EditorStyles.miniLabel);
+                else
+                    EditorGUILayout.LabelField("No workflow runs found. Start a build to see runs here.", EditorStyles.miniLabel);
                 EditorGUI.indentLevel--;
                 return;
             }
@@ -128,11 +152,11 @@ namespace HomecookedGames.DevOps.Editor
                 GUILayout.Label(icon, GUILayout.Width(20), GUILayout.Height(20));
 
                 // Title + branch + time
-                GUILayout.Label(run.Title, GUILayout.Width(200));
+                GUILayout.Label(run.Title, GUILayout.MinWidth(120));
                 GUILayout.Label(run.Branch, EditorStyles.miniLabel, GUILayout.Width(80));
-                GUILayout.Label(FormatTime(run.CreatedAt), EditorStyles.miniLabel, GUILayout.Width(80));
+                GUILayout.Label(FormatTime(run.CreatedAt), EditorStyles.miniLabel, GUILayout.Width(60));
 
-                if (GUILayout.Button("View", GUILayout.Width(50)))
+                if (GUILayout.Button("View", EditorStyles.miniButton, GUILayout.Width(40)))
                     ViewRun(run.Id);
 
                 EditorGUILayout.EndHorizontal();
@@ -288,6 +312,14 @@ namespace HomecookedGames.DevOps.Editor
             if (elapsed.TotalMinutes < 60) return $"{(int)elapsed.TotalMinutes}m ago";
             if (elapsed.TotalHours < 24) return $"{(int)elapsed.TotalHours}h ago";
             return $"{(int)elapsed.TotalDays}d ago";
+        }
+
+        static void DrawSectionHeader(string title)
+        {
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+            var rect = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(rect, new Color(0.3f, 0.3f, 0.3f, 0.5f));
+            EditorGUILayout.Space(4);
         }
     }
 }
