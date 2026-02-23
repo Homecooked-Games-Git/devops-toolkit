@@ -75,6 +75,7 @@ namespace HomecookedGames.DevOps.Editor
         public ComponentStatus SetupYml { get; private set; }
         public ServiceAccountInfo ServiceAccount { get; set; }
         public bool BoilerplateTracked { get; private set; }
+        public string CurrentBranch { get; private set; }
 
         public StatusChecker()
         {
@@ -93,6 +94,7 @@ namespace HomecookedGames.DevOps.Editor
             RefreshGitIgnore();
             RefreshSetupYml();
             RefreshBoilerplateTracked();
+            RefreshCurrentBranch();
         }
 
         void RefreshProjectInfo()
@@ -231,6 +233,27 @@ namespace HomecookedGames.DevOps.Editor
                 proc.StandardError.ReadToEnd();
                 proc.WaitForExit();
                 BoilerplateTracked = proc.ExitCode == 0;
+            }
+            catch { /* git not available */ }
+        }
+
+        void RefreshCurrentBranch()
+        {
+            CurrentBranch = null;
+            try
+            {
+                var psi = new ProcessStartInfo("git", "branch --show-current")
+                {
+                    WorkingDirectory = ProjectRoot,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                CurrentBranch = proc.StandardOutput.ReadToEnd().Trim();
+                proc.StandardError.ReadToEnd();
+                proc.WaitForExit();
             }
             catch { /* git not available */ }
         }

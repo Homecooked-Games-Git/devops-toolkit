@@ -1,6 +1,6 @@
 {
   "name": "com.homecookedgames.devops",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "displayName": "Homecooked Games DevOps",
   "description": "CI/CD integration dashboard and essential plugin manager for Unity projects.",
   "unity": "6000.0",

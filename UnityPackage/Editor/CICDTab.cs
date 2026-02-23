@@ -101,6 +101,16 @@ namespace HomecookedGames.DevOps.Editor
         void DrawSetupWizard()
         {
             DrawSectionHeader("Project Setup");
+
+            var branch = _checker.CurrentBranch;
+            if (!string.IsNullOrEmpty(branch) && branch != "main" && branch != "master")
+            {
+                EditorGUILayout.HelpBox(
+                    $"Current branch is \"{branch}\". Must be on the default branch (main/master) for setup to work.",
+                    MessageType.Warning);
+                EditorGUILayout.Space(4);
+            }
+
             EditorGUI.indentLevel++;
 
             // Step 1: Generate Boilerplate
