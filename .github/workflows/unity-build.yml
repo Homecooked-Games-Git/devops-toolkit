@@ -167,18 +167,27 @@ jobs:
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TEXT="${EMOJI} *${{ inputs.game_name }}* iOS build ${STATUS}"
-          FIELDS="[{\"title\":\"Build\",\"value\":\"<${RUN_URL}|View Run>\",\"short\":true},{\"title\":\"Distribution\",\"value\":\"${{ inputs.distribution }}\",\"short\":true}]"
 
+          FB_FIELD=""
           if [ -f firebase_release_url.txt ]; then
             FB_URL=$(cat firebase_release_url.txt)
             if [ -n "$FB_URL" ]; then
-              FIELDS=$(echo "$FIELDS" | sed 's/]$/,{"title":"Firebase","value":"<'"$FB_URL"'|Install Link>","short":true}]/')
+              FB_FIELD=",{\"title\":\"Firebase\",\"value\":\"<${FB_URL}|Install Link>\",\"short\":true}"
             fi
           fi
 
+          PAYLOAD=$(cat <<EOJSON
+          {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
+            {"title":"Build","value":"<${RUN_URL}|View Run>","short":true},
+            {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
+            ${FB_FIELD}
+          ]}]}
+          EOJSON
+          )
+
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${TEXT}\",\"fields\":${FIELDS}}]}"
+            -d "$PAYLOAD"
 
   # ── Android ──────────────────────────────────────────
   build-android:
@@ -294,15 +303,24 @@ jobs:
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           TEXT="${EMOJI} *${{ inputs.game_name }}* Android build ${STATUS}"
-          FIELDS="[{\"title\":\"Build\",\"value\":\"<${RUN_URL}|View Run>\",\"short\":true},{\"title\":\"Distribution\",\"value\":\"${{ inputs.distribution }}\",\"short\":true}]"
 
+          FB_FIELD=""
           if [ -f firebase_release_url.txt ]; then
             FB_URL=$(cat firebase_release_url.txt)
             if [ -n "$FB_URL" ]; then
-              FIELDS=$(echo "$FIELDS" | sed 's/]$/,{"title":"Firebase","value":"<'"$FB_URL"'|Install Link>","short":true}]/')
+              FB_FIELD=",{\"title\":\"Firebase\",\"value\":\"<${FB_URL}|Install Link>\",\"short\":true}"
             fi
           fi
 
+          PAYLOAD=$(cat <<EOJSON
+          {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
+            {"title":"Build","value":"<${RUN_URL}|View Run>","short":true},
+            {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
+            ${FB_FIELD}
+          ]}]}
+          EOJSON
+          )
+
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"attachments\":[{\"color\":\"${COLOR}\",\"text\":\"${TEXT}\",\"fields\":${FIELDS}}]}"
+            -d "$PAYLOAD"
