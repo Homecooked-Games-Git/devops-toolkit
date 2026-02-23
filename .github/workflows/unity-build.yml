@@ -154,10 +154,11 @@ jobs:
           path: "${{ inputs.xcode_project_dir }}/output/${{ inputs.game_name }}.ipa"
 
       - name: Notify Slack
-        if: always() && env.SLACK_WEBHOOK_URL != ''
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then exit 0; fi
           if [ "${{ job.status }}" = "success" ]; then
             EMOJI=":white_check_mark:"; STATUS="succeeded"; COLOR="#36a64f"
           else
@@ -280,10 +281,11 @@ jobs:
           path: build/Android
 
       - name: Notify Slack
-        if: always() && env.SLACK_WEBHOOK_URL != ''
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then exit 0; fi
           if [ "${{ job.status }}" = "success" ]; then
             EMOJI=":white_check_mark:"; STATUS="succeeded"; COLOR="#36a64f"
           else
