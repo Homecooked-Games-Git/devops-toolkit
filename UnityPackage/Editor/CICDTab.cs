@@ -311,6 +311,22 @@ namespace HomecookedGames.DevOps.Editor
             var scriptPath = Path.Combine(Path.GetTempPath(), "devops_firebase_setup.sh");
             File.WriteAllText(scriptPath, @"#!/bin/bash
 set -e
+
+# Wait for GitHub to recognise the workflow (can take up to ~60s after push)
+echo ""Waiting for GitHub to detect setup.yml workflow...""
+for i in $(seq 1 12); do
+  if gh workflow view setup.yml &>/dev/null; then
+    echo ""Workflow found.""
+    break
+  fi
+  if [ $i -eq 12 ]; then
+    echo ""ERROR: setup.yml not found on the default branch after 60s.""
+    echo ""Make sure Step 2 (Commit & Push) completed and setup.yml is on the default branch.""
+    exit 1
+  fi
+  sleep 5
+done
+
 gh workflow run setup.yml
 sleep 5
 RUN_ID=$(gh run list --workflow=setup.yml --limit=1 --json databaseId -q '.[0].databaseId')
