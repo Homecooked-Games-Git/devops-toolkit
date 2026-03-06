@@ -117,7 +117,7 @@ jobs:
         if: inputs.script_defines != ''
         run: |
           DEFINES="${{ inputs.script_defines }}"
-          sed -i '' -E "s/(    iPhone: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
+          sed -i '' -E "/scriptingDefineSymbols/,/^  [a-zA-Z]/ s/(    iPhone: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
           echo "Appended script defines: ${DEFINES}"
 
       - name: Build Xcode Project via GameCI
@@ -254,7 +254,7 @@ jobs:
         if: inputs.script_defines != ''
         run: |
           DEFINES="${{ inputs.script_defines }}"
-          sed -i '' -E "s/(    Android: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
+          sed -i '' -E "/scriptingDefineSymbols/,/^  [a-zA-Z]/ s/(    Android: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
           echo "Appended script defines: ${DEFINES}"
 
       - name: Build Android via GameCI
