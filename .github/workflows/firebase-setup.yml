@@ -61,12 +61,20 @@ jobs:
           GAME: ${{ inputs.game_name }}
 
       - name: Add CI Service Account
-        run: |
-          gcloud projects add-iam-policy-binding "hcg-$GAME" \
-            --member="serviceAccount:ci-distribution@hcgamesfirebase.iam.gserviceaccount.com" \
-            --role="roles/firebaseappdistro.admin" --quiet 2>&1 || echo "Binding may already exist"
         env:
           GAME: ${{ inputs.game_name }}
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          SA_EMAIL=$(python3 -c "import json,sys; print(json.load(sys.stdin)['client_email'])" <<< "$SA_JSON")
+          echo "Granting firebaseappdistro.admin to $SA_EMAIL on hcg-$GAME"
+          # Use the owner's access token (from FIREBASE_TOKEN) since the SA
+          # doesn't have IAM permissions on newly created projects
+          ACCESS_TOKEN=$(curl -sf "https://oauth2.googleapis.com/token" \
+            -d "grant_type=refresh_token&refresh_token=${FIREBASE_TOKEN}&client_id=563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com&client_secret=j9iVZfS8kkCEFUPaAeJV0sAi" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          CLOUDSDK_AUTH_ACCESS_TOKEN="$ACCESS_TOKEN" gcloud projects add-iam-policy-binding "hcg-$GAME" \
+            --member="serviceAccount:${SA_EMAIL}" \
+            --role="roles/firebaseappdistro.admin" --quiet 2>&1 || echo "Binding may already exist"
 
       - name: Commit & Push Configs
         run: |
