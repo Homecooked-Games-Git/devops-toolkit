@@ -153,6 +153,7 @@ jobs:
           FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
 
       - name: Upload IPA Artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: "${{ inputs.game_name }}-iOS-Build"
@@ -172,7 +173,13 @@ jobs:
           fi
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ARTIFACT_URL="${{ steps.upload-artifact.outputs.artifact-url }}"
           TEXT="${EMOJI} *${{ inputs.game_name }}* iOS build ${STATUS}"
+
+          DOWNLOAD_FIELD=""
+          if [ -n "$ARTIFACT_URL" ]; then
+            DOWNLOAD_FIELD=",{\"title\":\".ipa Download\",\"value\":\"<${ARTIFACT_URL}|Download>\",\"short\":true}"
+          fi
 
           FB_FIELD=""
           if [ -f firebase_release_url.txt ]; then
@@ -184,8 +191,9 @@ jobs:
 
           PAYLOAD=$(cat <<EOJSON
           {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
-            {"title":".ipa Download","value":"<${RUN_URL}|View Artifacts>","short":true},
+            {"title":"Actions","value":"<${RUN_URL}|View Run>","short":true},
             {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
+            ${DOWNLOAD_FIELD}
             ${FB_FIELD}
           ]}]}
           EOJSON
@@ -295,6 +303,7 @@ jobs:
           FL_DEVOPS_TOOLKIT_REF: ${{ inputs.devops_toolkit_ref }}
 
       - name: Upload Build Artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: "${{ inputs.game_name }}-Android-Build"
@@ -314,7 +323,13 @@ jobs:
           fi
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ARTIFACT_URL="${{ steps.upload-artifact.outputs.artifact-url }}"
           TEXT="${EMOJI} *${{ inputs.game_name }}* Android build ${STATUS}"
+
+          DOWNLOAD_FIELD=""
+          if [ -n "$ARTIFACT_URL" ]; then
+            DOWNLOAD_FIELD=",{\"title\":\".apk Download\",\"value\":\"<${ARTIFACT_URL}|Download>\",\"short\":true}"
+          fi
 
           FB_FIELD=""
           if [ -f firebase_release_url.txt ]; then
@@ -326,8 +341,9 @@ jobs:
 
           PAYLOAD=$(cat <<EOJSON
           {"attachments":[{"color":"${COLOR}","text":"${TEXT}","fields":[
-            {"title":".apk Download","value":"<${RUN_URL}|View Artifacts>","short":true},
+            {"title":"Actions","value":"<${RUN_URL}|View Run>","short":true},
             {"title":"Distribution","value":"${{ inputs.distribution }}","short":true}
+            ${DOWNLOAD_FIELD}
             ${FB_FIELD}
           ]}]}
           EOJSON

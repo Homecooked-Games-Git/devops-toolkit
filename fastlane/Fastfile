@@ -216,7 +216,8 @@ platform :ios do
     firebase_app_distribution(
       app: firebase_app_id,
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
-      ipa_path: lane_context[SharedValues::IPA_OUTPUT_PATH]
+      ipa_path: lane_context[SharedValues::IPA_OUTPUT_PATH],
+      testers: "oguztecimer@gmail.com, berkaydin8@gmail.com"
     )
 
     write_firebase_release_url
@@ -233,7 +234,8 @@ platform :android do
     firebase_app_distribution(
       app: resolve_firebase_app_id(:android),
       service_credentials_json_data: ENV.fetch("FIREBASE_SERVICE_ACCOUNT_JSON"),
-      android_artifact_path: find_android_artifact
+      android_artifact_path: find_android_artifact,
+      testers: "oguztecimer@gmail.com, berkaydin8@gmail.com"
     )
 
     write_firebase_release_url
