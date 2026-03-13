@@ -17,7 +17,7 @@ jobs:
   setup:
     runs-on: [self-hosted, macOS]
     env:
-      GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa-key.json
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
     steps:
       - name: Setup credentials
         env:
