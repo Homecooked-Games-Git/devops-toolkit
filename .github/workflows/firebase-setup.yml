@@ -77,6 +77,10 @@ jobs:
           git diff --cached --quiet || git commit -m "Add Firebase config files [automated]"
           git push
 
+      - name: Show debug log on failure
+        if: failure()
+        run: cat firebase-debug.log 2>/dev/null || echo "No debug log found"
+
       - name: Cleanup credentials
         if: always()
         run: rm -f /tmp/firebase-sa-key.json
