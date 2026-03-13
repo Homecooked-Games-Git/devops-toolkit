@@ -120,6 +120,9 @@ jobs:
           sed -i '' -E "/scriptingDefineSymbols/,/^  [a-zA-Z]/ s/(    iPhone: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
           echo "Appended script defines: ${DEFINES}"
 
+      - name: Configure git to use SSH for private UPM packages
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
+
       - name: Build Xcode Project via GameCI
         uses: game-ci/unity-builder@v4
         env:
@@ -258,6 +261,9 @@ jobs:
           DEFINES="${{ inputs.script_defines }}"
           sed -i '' -E "/scriptingDefineSymbols/,/^  [a-zA-Z]/ s/(    Android: .*)$/\1;${DEFINES}/" ProjectSettings/ProjectSettings.asset
           echo "Appended script defines: ${DEFINES}"
+
+      - name: Configure git to use SSH for private UPM packages
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - name: Build Android via GameCI
         uses: game-ci/unity-builder@v4
