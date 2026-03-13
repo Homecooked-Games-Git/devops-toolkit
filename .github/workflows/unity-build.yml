@@ -132,7 +132,9 @@ jobs:
 
       - name: Install Ruby Dependencies
         if: inputs.distribution != 'None'
-        run: /opt/homebrew/opt/ruby/bin/bundle install
+        run: |
+          /opt/homebrew/opt/ruby/bin/bundle update
+          /opt/homebrew/opt/ruby/bin/bundle install
 
       - name: Run Fastlane
         if: inputs.distribution != 'None'
@@ -275,7 +277,9 @@ jobs:
 
       - name: Install Ruby Dependencies
         if: inputs.distribution == 'Firebase'
-        run: /opt/homebrew/opt/ruby/bin/bundle install
+        run: |
+          /opt/homebrew/opt/ruby/bin/bundle update
+          /opt/homebrew/opt/ruby/bin/bundle install
 
       - name: Run Fastlane
         if: inputs.distribution == 'Firebase'
