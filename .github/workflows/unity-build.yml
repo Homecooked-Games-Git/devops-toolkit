@@ -133,6 +133,10 @@ jobs:
           allowDirtyBuild: true
           versioning: ${{ inputs.unity_versioning }}
 
+      - name: Ensure Xcode First Launch
+        if: inputs.distribution != 'None'
+        run: sudo xcodebuild -runFirstLaunch
+
       - name: Install Ruby Dependencies
         if: inputs.distribution != 'None'
         run: |
