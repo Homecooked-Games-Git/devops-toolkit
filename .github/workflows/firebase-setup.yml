@@ -20,8 +20,9 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa-key.json
     steps:
       - name: Setup Firebase credentials
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/firebase-sa-key.json
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: printenv SA_JSON > /tmp/firebase-sa-key.json
 
       - name: Verify runner prerequisites
         run: |
