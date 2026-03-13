@@ -16,7 +16,13 @@ on:
 jobs:
   setup:
     runs-on: [self-hosted, macOS]
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa-key.json
     steps:
+      - name: Setup Firebase credentials
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/firebase-sa-key.json
+
       - name: Verify runner prerequisites
         run: |
           echo "=== Checking required tools ==="
@@ -34,11 +40,11 @@ jobs:
           echo ""
           echo "=== Checking authentication ==="
 
-          # Firebase auth
+          # Firebase auth (via service account)
           if firebase projects:list --limit 1 &>/dev/null; then
             echo "✓ firebase: authenticated"
           else
-            echo "✗ firebase: not authenticated (run: firebase login)"
+            echo "✗ firebase: not authenticated (check FIREBASE_SERVICE_ACCOUNT_JSON secret)"
             FAIL=1
           fi
 
@@ -107,3 +113,7 @@ jobs:
           git add Assets/Settings/GoogleService-Info.plist.meta Assets/Settings/google-services.json.meta 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Add Firebase config files [automated]"
           git push
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f /tmp/firebase-sa-key.json
