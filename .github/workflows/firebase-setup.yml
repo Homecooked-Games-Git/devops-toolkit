@@ -16,22 +16,18 @@ on:
 jobs:
   setup:
     runs-on: [self-hosted, macOS]
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa-key.json
     steps:
-      - name: Authenticate with service account
+      - name: Setup credentials
         env:
           SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
           printenv SA_JSON > /tmp/firebase-sa-key.json
           gcloud auth activate-service-account --key-file=/tmp/firebase-sa-key.json
-          echo "=== Checking tools ==="
           for cmd in firebase gcloud git; do
-            if command -v "$cmd" &>/dev/null; then
-              echo "✓ $cmd: $(command -v $cmd)"
-            else
-              echo "✗ $cmd: NOT FOUND"; exit 1
-            fi
+            command -v "$cmd" &>/dev/null && echo "✓ $cmd" || { echo "✗ $cmd: NOT FOUND"; exit 1; }
           done
-          echo "✓ authenticated as $(gcloud config get account)"
 
       - uses: actions/checkout@v4
 
